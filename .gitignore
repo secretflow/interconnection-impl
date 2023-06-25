@@ -4,3 +4,5 @@ cmake-build-debug-remote
 
 # bazel
 bazel-*
+
+build

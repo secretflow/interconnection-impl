@@ -25,7 +25,7 @@ namespace ic_impl::op::sigmoid {
 int32_t SuggestedSigmoidMode() {
   return util::GetFlagValue(
       org::interconnection::v2::op::SigmoidMode_descriptor(), "SIGMOID_MODE_",
-      FLAGS_sigmoid_mode);
+      util::GetParamEnv("sigmoid_mode", FLAGS_sigmoid_mode));
 }
 
 }  // namespace ic_impl::op::sigmoid

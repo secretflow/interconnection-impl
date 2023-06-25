@@ -34,6 +34,18 @@ namespace {
 
 constexpr std::array<int32_t, 2> kSupportedVersions{1, 2};
 
+int32_t SuggestedAlgo() {
+  return util::GetFlagValue(org::interconnection::v2::AlgoType_descriptor(),
+                            "ALGO_TYPE_",
+                            util::GetParamEnv("algo", FLAGS_algo));
+}
+
+std::vector<int32_t> SuggestedProtocolFamilies() {
+  return util::GetFlagValues(
+      org::interconnection::v2::ProtocolFamily_descriptor(), "PROTOCOL_FAMILY_",
+      util::GetParamEnv("protocol_families", FLAGS_protocol_families));
+}
+
 }  // namespace
 
 std::shared_ptr<IcContext> CreateIcContext() {
@@ -42,13 +54,9 @@ std::shared_ptr<IcContext> CreateIcContext() {
   YACL_ENFORCE(util::IsFlagSupported(kSupportedVersions, FLAGS_ic_version));
   ic_ctx->version = FLAGS_ic_version;
 
-  ic_ctx->algo =
-      util::GetFlagValue(org::interconnection::v2::AlgoType_descriptor(),
-                         "ALGO_TYPE_", FLAGS_algo);
+  ic_ctx->algo = SuggestedAlgo();
 
-  ic_ctx->protocol_families =
-      util::GetFlagValues(org::interconnection::v2::ProtocolFamily_descriptor(),
-                          "PROTOCOL_FAMILY_", FLAGS_protocol_families);
+  ic_ctx->protocol_families = SuggestedProtocolFamilies();
 
   YACL_ENFORCE(!ic_ctx->protocol_families.empty());
 

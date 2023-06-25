@@ -25,7 +25,7 @@ DEFINE_string(protocol, "semi2k", "ss protocol suggested");
 DEFINE_string(field, "64",
               "field type，32 for Ring32, 64 for Ring64, 128 for Ring128");
 DEFINE_int32(fxp_bits, 18, "number of fraction bits of fixed-point number");
-DEFINE_string(tunc_mode, "probabilistic", "truncation mode");
+DEFINE_string(trunc_mode, "probabilistic", "truncation mode");
 DEFINE_string(shard_serialize_format, "raw",
               "serialization format used in communicating secret shares");
 
@@ -44,27 +44,45 @@ namespace {
 int32_t SuggestedProtocol() {
   return util::GetFlagValue(
       org::interconnection::v2::protocol::ProtocolKind_descriptor(),
-      "PROTOCOL_KIND_", FLAGS_protocol);
+      "PROTOCOL_KIND_", util::GetParamEnv("protocol", FLAGS_protocol));
 }
 
 int32_t SuggestedFieldType() {
   return util::GetFlagValue(
       org::interconnection::v2::protocol::FieldType_descriptor(), "FIELD_TYPE_",
-      FLAGS_field);
+      util::GetParamEnv("field", FLAGS_field));
 }
 
-int32_t SuggestedFxpBits() { return FLAGS_fxp_bits; }
+int32_t SuggestedFxpBits() {
+  return util::GetParamEnv("fxp_bits", FLAGS_fxp_bits);
+}
 
 int32_t SuggestedTruncationMode() {
   return util::GetFlagValue(
       org::interconnection::v2::protocol::TruncMode_descriptor(), "TRUNC_MODE_",
-      FLAGS_tunc_mode);
+      util::GetParamEnv("trunc_mode", FLAGS_trunc_mode));
 }
 
 int32_t SuggestedShardSerializeFormat() {
   return util::GetFlagValue(
       org::interconnection::v2::protocol::ShardSerializeFormat_descriptor(),
-      "SHARED_SERIALIZE_FORMAT_", FLAGS_shard_serialize_format);
+      "SHARED_SERIALIZE_FORMAT_",
+      util::GetParamEnv("shard_serialize_format",
+                        FLAGS_shard_serialize_format));
+}
+
+bool SuggestedUseTtp() { return util::GetParamEnv("use_ttp", FLAGS_use_ttp); }
+
+std::string SuggestedTtpServerHost() {
+  return util::GetParamEnv("ttp_server_host", FLAGS_ttp_server_host);
+}
+
+std::string SuggestedTtpSessionId() {
+  return util::GetParamEnv("ttp_session_id", FLAGS_ttp_session_id);
+}
+
+int32_t SuggestedTtpAdjustRank() {
+  return util::GetParamEnv("ttp_adjust_rank", FLAGS_ttp_adjust_rank);
 }
 
 }  // namespace
@@ -82,10 +100,10 @@ SsProtocolParam SuggestedSsProtocolParam() {
 
 TrustedThirdPartyConfig SuggestedTtpConfig() {
   TrustedThirdPartyConfig ttp_config;
-  ttp_config.use_ttp = FLAGS_use_ttp;
-  ttp_config.ttp_server_host = FLAGS_ttp_server_host;
-  ttp_config.ttp_session_id = FLAGS_ttp_session_id;
-  ttp_config.ttp_adjust_rank = FLAGS_ttp_adjust_rank;
+  ttp_config.use_ttp = SuggestedUseTtp();
+  ttp_config.ttp_server_host = SuggestedTtpServerHost();
+  ttp_config.ttp_session_id = SuggestedTtpSessionId();
+  ttp_config.ttp_adjust_rank = SuggestedTtpAdjustRank();
 
   return ttp_config;
 }

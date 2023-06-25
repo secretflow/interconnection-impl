@@ -25,16 +25,32 @@ DEFINE_double(learning_rate, 0.0001,
 
 namespace ic_impl::algo::optimizer {
 
+int32_t SuggestedOptimizerType() {
+  std::string_view optimizer = FLAGS_optimizer;
+  if (char* env = util::GetParamEnv("optimizer")) {
+    optimizer = env;
+  }
+
+  return util::GetFlagValue(
+      org::interconnection::v2::algos::Optimizer_descriptor(), "OPTIMIZER_",
+      optimizer);
+}
+
+double SuggestedLearningRate() {
+  if (char* env = util::GetParamEnv("learning_rate")) {
+    return std::stod(env);
+  }
+  return FLAGS_learning_rate;
+}
+
 Optimizer SuggestedOptimizer() {
   Optimizer optimizer;
-  optimizer.type = util::GetFlagValue(
-      org::interconnection::v2::algos::Optimizer_descriptor(), "OPTIMIZER_",
-      FLAGS_optimizer);
+  optimizer.type = SuggestedOptimizerType();
 
   switch (optimizer.type) {
     case org::interconnection::v2::algos::OPTIMIZER_SGD: {
       org::interconnection::v2::algos::SgdOptimizer optimizer_param;
-      optimizer_param.set_learning_rate(FLAGS_learning_rate);
+      optimizer_param.set_learning_rate(SuggestedLearningRate());
       optimizer.param = optimizer_param;
       break;
     }
@@ -45,11 +61,11 @@ Optimizer SuggestedOptimizer() {
     case org::interconnection::v2::algos::OPTIMIZER_ADAM:
     case org::interconnection::v2::algos::OPTIMIZER_ADAMAX:
     case org::interconnection::v2::algos::OPTIMIZER_NADAM: {
-      YACL_ENFORCE(false, "Unimplemented optimizer type");
+      YACL_THROW("Unimplemented optimizer type");
       break;
     }
     default: {
-      YACL_ENFORCE(false, "Unspecified optimizer type");
+      YACL_THROW("Unspecified optimizer type");
     }
   }
 
