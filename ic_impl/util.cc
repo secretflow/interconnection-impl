@@ -14,21 +14,45 @@
 
 #include "ic_impl/util.h"
 
+#include <cstdlib>
+
 #include "absl/strings/str_split.h"
 #include "spdlog/spdlog.h"
 #include "yacl/link/factory.h"
 
 namespace ic_impl::util {
 
-std::shared_ptr<yacl::link::Context> MakeLink(std::string_view parties,
-                                              int32_t self_rank) {
+std::shared_ptr<yacl::link::Context> CreateLinkContextForBlackBox() {
+  yacl::link::ContextDesc desc;
+  desc.brpc_channel_protocol = "http";
+  size_t self_rank;
+  yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties,
+                                                           self_rank);
+  return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
+}
+
+std::shared_ptr<yacl::link::Context> CreateLinkContextForWhiteBox(
+    std::string_view parties, int32_t self_rank) {
   yacl::link::ContextDesc lctx_desc;
   std::vector<std::string> hosts = absl::StrSplit(parties, ',');
   for (size_t rank = 0; rank < hosts.size(); rank++) {
     const auto id = fmt::format("party{}", rank);
     lctx_desc.parties.push_back({id, hosts[rank]});
   }
-  auto lctx = yacl::link::FactoryBrpc().CreateContext(lctx_desc, self_rank);
+
+  return yacl::link::FactoryBrpc().CreateContext(lctx_desc, self_rank);
+}
+
+std::shared_ptr<yacl::link::Context> MakeLink(std::string_view parties,
+                                              int32_t self_rank) {
+  std::shared_ptr<yacl::link::Context> lctx;
+  try {
+    lctx = CreateLinkContextForBlackBox();
+  } catch (const std::exception& e) {
+    SPDLOG_INFO("create link context for blackbox failed: {}", e.what());
+    lctx = CreateLinkContextForWhiteBox(parties, self_rank);
+  }
+
   lctx->ConnectToMesh();
   return lctx;
 }
@@ -77,6 +101,15 @@ std::vector<int32_t> GetFlagValues(
   }
 
   return flag_values;
+}
+
+bool ToBool(std::string_view str) {
+  return absl::AsciiStrToLower(str) == "true";
+}
+
+char* GetParamEnv(std::string_view env_name) {
+  return std::getenv(
+      absl::StrCat("runtime.component.parameter.", env_name).c_str());
 }
 
 }  // namespace ic_impl::util

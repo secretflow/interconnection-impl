@@ -17,18 +17,20 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 SECRETFLOW_GIT = "https://github.com/secretflow"
 
-SPU_COMMIT_ID  = "9fd70780b4fd9a5ba67140a46b35db76d393c3eb"
+SPU_COMMIT_ID  = "b0ba2d35fe7b9c9ac64c67e6919c31c0189602fc"
 
 IC_COMMIT_ID  = "aa951609c533091ff9ffb38d4bd60f6e2aba7e60"
 
 SPU_REPOSITORY = "SPU"
 
 def ic_impl_deps():
+    _com_github_nlohmann_json()
+
     maybe(
         git_repository,
         name = "spulib",
         commit = SPU_COMMIT_ID,
-        remote = "{}/{}.git".format(SECRETFLOW_GIT, SPU_REPOSITORY),
+        remote = "{}/{}.git".format("https://github.com/shaojian-ant", SPU_REPOSITORY),
     )
 
 def protocol_deps():
@@ -37,4 +39,12 @@ def protocol_deps():
         name = "org_interconnection",
         commit = IC_COMMIT_ID,
         remote = "{}/interconnection.git".format(SECRETFLOW_GIT),
+    )
+
+def _com_github_nlohmann_json():
+    maybe(
+        git_repository,
+        name = "com_github_nlohmann_json",
+        commit = "5d2754306d67d1e654a1a34e1d2e74439a9d53b3",
+        remote = "git@github.com:nlohmann/json.git",
     )

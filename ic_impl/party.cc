@@ -36,8 +36,7 @@ HandshakeRequestVariant ParseHandshakeReqeust(const yacl::Buffer &buf) {
   } else if (helper.version() >= 2) {
     request_variant.emplace<HandshakeRequestV2>();
   } else {
-    YACL_ENFORCE(false, "recv invalid HandshakeRequest version {}",
-                 helper.version());
+    YACL_THROW("recv invalid HandshakeRequest version {}", helper.version());
   }
 
   auto visitor = [&buf](auto &request) {
@@ -96,7 +95,7 @@ void StripVariant(const std::vector<HandshakeRequestVariant> &request_variants,
                   std::vector<HandshakeRequestV2> &requests_v2) {
   auto visitor = [&requests_v1, &requests_v2](const auto &request) {
     if constexpr (std::is_convertible_v<decltype(request), std::monostate>) {
-      YACL_ENFORCE(false, "Unexpected behavior");
+      YACL_THROW("Unexpected behavior");
     } else if constexpr (std::is_convertible_v<decltype(request),
                                                HandshakeRequestV1>) {
       requests_v1.push_back(request);

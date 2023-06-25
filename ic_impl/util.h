@@ -197,7 +197,7 @@ std::optional<ItemType> AlignParamItem(const std::vector<ParamType> &params,
     } else if constexpr (std::is_same_v<ItemType, int64_t>) {
       value = reflection->GetInt64(param, item_field);
     } else {
-      YACL_ENFORCE(false, "Not implemented");
+      YACL_THROW("Not implemented");
     }
 
     if (!last_value.has_value()) {
@@ -227,6 +227,31 @@ template <class T>
 typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type
 AlmostZero(T x) {
   return AlmostEqual(x, static_cast<T>(0), 2);
+}
+
+bool ToBool(std::string_view str);
+
+char *GetParamEnv(std::string_view env_name);
+
+template <typename T>
+T GetParamEnv(std::string_view env_name, const T &default_value) {
+  if (char *env = GetParamEnv(env_name)) {
+    if constexpr (std::is_convertible_v<T, std::string>) {
+      return env;
+    } else if constexpr (std::is_same_v<T, bool>) {
+      return ToBool(env);
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+      return std::stoi(env);
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+      return std::stoll(env);
+    } else if constexpr (std::is_same_v<T, double>) {
+      return std::stod(env);
+    } else {
+      YACL_THROW("Not implemented");
+    }
+  }
+
+  return default_value;
 }
 
 }  // namespace ic_impl::util

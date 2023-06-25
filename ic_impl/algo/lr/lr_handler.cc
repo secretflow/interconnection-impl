@@ -17,6 +17,7 @@
 #include <fstream>
 
 #include "absl/functional/bind_front.h"
+#include "absl/strings/match.h"
 #include "gflags/gflags.h"
 #include "libspu/core/config.h"
 #include "libspu/core/encoding.h"
@@ -24,6 +25,7 @@
 #include "libspu/mpc/aby3/type.h"
 #include "libspu/mpc/factory.h"
 #include "libspu/mpc/semi2k/type.h"
+#include "nlohmann/json.hpp"
 #include "xtensor/xcsv.hpp"
 #include "xtensor/xio.hpp"
 
@@ -58,8 +60,33 @@ using org::interconnection::v2::protocol::TRUNC_MODE_PROBABILISTIC;
 
 namespace {
 
+std::optional<std::string> GetInputFileFromEnv() {
+  char* root_path = std::getenv("system.storage.host.url");
+  if (!root_path || !absl::StartsWith(root_path, "file://")) {
+    return std::nullopt;
+  }
+
+  char* json_str = std::getenv("runtime.component.input.train_data");
+  if (!json_str) {
+    return std::nullopt;
+  }
+
+  auto json_object = nlohmann::json::parse(json_str);
+  std::string relative_path = json_object.at("namespace");
+  std::string file_name = json_object.at("name");
+
+  return absl::StrCat(std::string(root_path).substr(6), "/", relative_path, "/",
+                      file_name);
+}
+
 std::unique_ptr<xt::xarray<float>> ReadDataset() {
-  std::ifstream file(FLAGS_dataset);
+  std::string_view input_file = FLAGS_dataset;
+  auto input_optional = GetInputFileFromEnv();
+  if (input_optional.has_value()) {
+    input_file = input_optional.value();
+  }
+
+  std::ifstream file(input_file.data());
   YACL_ENFORCE(file, "open file={} failed", FLAGS_dataset);
 
   return std::make_unique<xt::xarray<float>>(
@@ -164,13 +191,11 @@ LrHandler::LrHandler(std::shared_ptr<LrContext> ctx)
     case org::interconnection::v2::algos::OPTIMIZER_ADAM:
     case org::interconnection::v2::algos::OPTIMIZER_ADAMAX:
     case org::interconnection::v2::algos::OPTIMIZER_NADAM: {
-      YACL_ENFORCE(false, "Unimplemented optimizer type {}",
-                   ctx_->optimizer.type);
+      YACL_THROW("Unimplemented optimizer type {}", ctx_->optimizer.type);
       break;
     }
     default:
-      YACL_ENFORCE(false, "Unspecified optimizer type {}",
-                   ctx_->optimizer.type);
+      YACL_THROW("Unspecified optimizer type {}", ctx_->optimizer.type);
   }
 }
 
@@ -312,7 +337,7 @@ HandshakeRequestV2 LrHandler::BuildHandshakeRequest() {
 
       request.add_protocol_family_params()->PackFrom(protocol_param);
     } else {
-      YACL_ENFORCE(false, "Protocol family {} for LR not implemented", family);
+      YACL_THROW("Protocol family {} for LR not implemented", family);
     }
   }
 
@@ -750,7 +775,7 @@ spu::Value LrHandler::Concatenate(spu::SPUContext* sctx, spu::Value x) {
     ty = spu::makeType<spu::mpc::aby3::AShrTy>(
         static_cast<spu::FieldType>(ctx_->ss_param.field_type));
   } else {
-    YACL_ENFORCE(false);
+    YACL_THROW("Unexpected error");
   }
   x.storage_type() = ty;
 
