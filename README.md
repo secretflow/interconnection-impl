@@ -19,9 +19,9 @@ run SS-LR:
 
 cd interconnection-impl/ic_impl
 
-bazel run -c dbg --define tracelog=on ic_main -- -rank=0 -algo=SS_LR -protocol_families=SS --dataset=ic_impl/data/perfect_logit_a.csv --has_label=true --use_ttp=true
+bazel run -c dbg --define tracelog=on ic_main -- -rank=0 -algo=SS_LR -protocol_families=SS --dataset=ic_impl/data/perfect_logit_a.csv --has_label=true --use_ttp=true -ttp_server_host=127.0.0.1:9449 -parties=127.0.0.1:9530,127.0.0.1:9531
 
-bazel run -c dbg --define tracelog=on ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS --dataset=ic_impl/data/perfect_logit_b.csv --has_label=false --use_ttp=true
+bazel run -c dbg --define tracelog=on ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS --dataset=ic_impl/data/perfect_logit_b.csv --has_label=false --use_ttp=true -ttp_server_host=127.0.0.1:9449 -parties=127.0.0.1:9530,127.0.0.1:9531
 
 ---
 
