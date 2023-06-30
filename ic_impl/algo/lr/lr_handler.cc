@@ -14,6 +14,7 @@
 
 #include "ic_impl/algo/lr/lr_handler.h"
 
+#include <cstdlib>
 #include <fstream>
 
 #include "absl/functional/bind_front.h"
@@ -31,6 +32,8 @@
 
 DEFINE_string(dataset, "data.csv", "dataset file, only csv is supported");
 DEFINE_int32(skip_rows, 1, "skip number of rows from dataset");
+DEFINE_string(lr_output, "/tmp/sslr_result", "full path name of output file");
+DECLARE_int32(rank);
 
 namespace ic_impl::algo::lr {
 
@@ -60,13 +63,20 @@ using org::interconnection::v2::protocol::TRUNC_MODE_PROBABILISTIC;
 
 namespace {
 
-std::optional<std::string> GetInputFileFromEnv() {
-  char* root_path = std::getenv("system.storage.host.url");
-  if (!root_path || !absl::StartsWith(root_path, "file://")) {
+std::optional<std::string> GetIoFileNameFromEnv(bool input) {
+  char* host_url = std::getenv("system.storage.host.url");
+  if (!host_url || !absl::StartsWith(host_url, "file://")) {
     return std::nullopt;
   }
+  std::string_view root_path = host_url + 6;
 
-  char* json_str = std::getenv("runtime.component.input.train_data");
+  char* json_str = nullptr;
+  if (input) {
+    json_str = std::getenv("runtime.component.input.train_data");
+  } else {
+    json_str = std::getenv("runtime.component.output.train_data");
+  }
+
   if (!json_str) {
     return std::nullopt;
   }
@@ -75,19 +85,47 @@ std::optional<std::string> GetInputFileFromEnv() {
   std::string relative_path = json_object.at("namespace");
   std::string file_name = json_object.at("name");
 
-  return absl::StrCat(std::string(root_path).substr(6), "/", relative_path, "/",
-                      file_name);
+  std::string absolute_path = absl::StrCat(root_path, "/", relative_path);
+  if (!input) {
+    system(absl::StrCat("mkdir -p ", absolute_path).c_str());
+  }
+
+  return absl::StrCat(absolute_path, "/", file_name);
+}
+
+inline std::optional<std::string> GetInputFileNameFromEnv() {
+  return GetIoFileNameFromEnv(true);
+}
+
+inline std::optional<std::string> GetOutputFileNameFromEnv() {
+  return GetIoFileNameFromEnv(false);
+}
+
+std::string GetInputFileName() {
+  std::string_view input_file_name = FLAGS_dataset;
+  auto input_optional = GetInputFileNameFromEnv();
+  if (input_optional.has_value()) {
+    input_file_name = input_optional.value();
+  }
+
+  return input_file_name.data();
+}
+
+std::string GetOutputFileName() {
+  std::string output_file_name = absl::StrCat(FLAGS_lr_output, ".", FLAGS_rank);
+  auto output_optional = GetOutputFileNameFromEnv();
+  if (output_optional.has_value()) {
+    output_file_name = output_optional.value();
+  }
+
+  return output_file_name;
 }
 
 std::unique_ptr<xt::xarray<float>> ReadDataset() {
-  std::string_view input_file = FLAGS_dataset;
-  auto input_optional = GetInputFileFromEnv();
-  if (input_optional.has_value()) {
-    input_file = input_optional.value();
-  }
+  std::string input_file = GetInputFileName();
 
-  std::ifstream file(input_file.data());
-  YACL_ENFORCE(file, "open file={} failed", FLAGS_dataset);
+  std::ifstream file(input_file);
+  YACL_ENFORCE(file, "open file={} failed", input_file);
 
   return std::make_unique<xt::xarray<float>>(
       xt::load_csv<float>(file, ',', FLAGS_skip_rows));
@@ -685,6 +723,22 @@ float MSE(const xt::xarray<float>& y_true, const xt::xarray<float>& y_pred) {
   return sse / static_cast<float>(y_true.size());
 }
 
+void ProduceOutput(spu::SPUContext* sctx, const spu::Value& w) {
+  // output result shares to the file
+  spu::PtType out_pt_type;
+  auto w_output = spu::decodeFromRing(
+      w.data(), w.dtype(), sctx->config().fxp_fraction_bits(), &out_pt_type);
+  YACL_ENFORCE(out_pt_type == spu::PT_F32);
+
+  std::string out_file_name = GetOutputFileName();
+  std::ofstream of(out_file_name);
+  YACL_ENFORCE(of, "open file={} failed", out_file_name);
+  for (auto it = w_output.begin(); it != w_output.end(); ++it) {
+    auto* item = reinterpret_cast<float*>(it.getRawPtr());
+    of << *item << '\n';
+  }
+}
+
 void LrHandler::RunAlgo() {
   auto sctx = MakeSpuContext();
   spu::mpc::Factory::RegisterProtocol(sctx.get(), sctx->lctx());
@@ -702,6 +756,8 @@ void LrHandler::RunAlgo() {
 
   auto mse = MSE(revealed_labels, revealed_scores);
   std::cout << "MSE = " << mse << "\n";  //
+
+  ProduceOutput(sctx.get(), w);
 }
 
 std::unique_ptr<spu::SPUContext> LrHandler::MakeSpuContext() {
