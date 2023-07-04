@@ -32,8 +32,6 @@ namespace ic_impl::util {
 std::shared_ptr<yacl::link::Context> MakeLink(std::string_view parties,
                                               int32_t self_rank);
 
-std::set<int32_t> Intersection(const std::vector<std::set<int32_t>> &sets);
-
 int32_t GetFlagValue(const google::protobuf::EnumDescriptor *descriptor,
                      std::string_view prefix, std::string_view name);
 
@@ -45,6 +43,25 @@ template <typename T, size_t item_num>
 bool IsFlagSupported(const std::array<T, item_num> &flag_list, T flag) {
   auto it = std::find(flag_list.begin(), flag_list.end(), flag);
   return it != flag_list.end();
+}
+
+template <typename T>
+std::set<T> Intersection(const std::vector<std::set<T>> &sets) {
+  if (sets.empty()) {
+    return {};
+  }
+  std::set<T> last_intersection = sets[0];
+  std::set<T> cur_intersection;
+  for (typename std::set<T>::size_type i = 1; i < sets.size(); ++i) {
+    std::set_intersection(
+        last_intersection.begin(), last_intersection.end(), sets[i].begin(),
+        sets[i].end(),
+        std::inserter(cur_intersection, cur_intersection.begin()));
+    std::swap(last_intersection, cur_intersection);
+    cur_intersection.clear();
+  }
+
+  return last_intersection;
 }
 
 // Extract any type sub-message from message
@@ -128,10 +145,10 @@ std::vector<ParamType> ExtractParams(const std::vector<MessageType> &messages,
   return params;
 }
 
-template <typename ParamType>
-std::set<int32_t> IntersectParamItems(const std::vector<ParamType> &params,
-                                      int field_num) {
-  std::vector<std::set<int32_t>> result;
+template <typename ParamType, typename ItemType = int32_t>
+std::set<ItemType> IntersectParamItems(const std::vector<ParamType> &params,
+                                       int field_num) {
+  std::vector<std::set<ItemType>> result;
 
   const google::protobuf::Descriptor *descriptor = ParamType::GetDescriptor();
   const google::protobuf::Reflection *reflection = ParamType::GetReflection();
@@ -141,7 +158,7 @@ std::set<int32_t> IntersectParamItems(const std::vector<ParamType> &params,
 
   for (const auto &param : params) {
     const auto &items =
-        reflection->GetRepeatedFieldRef<int32_t>(param, item_field);
+        reflection->GetRepeatedFieldRef<ItemType>(param, item_field);
     result.emplace_back(items.begin(), items.end());
   }
 

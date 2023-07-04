@@ -16,16 +16,44 @@
 
 #include "libspu/psi/bucket_psi.h"
 
+namespace org::interconnection::v2::protocol {
+
+bool operator<(const EcSuit &lhs, const EcSuit &rhs) {
+  if (lhs.curve() < rhs.curve()) {
+    return true;
+  } else if (lhs.curve() > rhs.curve()) {
+    return false;
+  }
+
+  if (lhs.hash() < rhs.hash()) {
+    return true;
+  } else if (lhs.hash() > rhs.hash()) {
+    return false;
+  }
+
+  if (lhs.hash2curve_strategy() < rhs.hash2curve_strategy()) {
+    return true;
+  } else if (lhs.hash2curve_strategy() > rhs.hash2curve_strategy()) {
+    return false;
+  }
+
+  return false;
+}
+
+}  // namespace org::interconnection::v2::protocol
+
 namespace ic_impl::algo::psi::v2 {
 
 using org::interconnection::v2::ALGO_TYPE_ECDH_PSI;
 using org::interconnection::v2::PROTOCOL_FAMILY_ECC;
 using org::interconnection::v2::algos::PsiDataIoProposal;
+using org::interconnection::v2::algos::PsiDataIoResult;
 using org::interconnection::v2::protocol::EccProtocolProposal;
 using org::interconnection::v2::protocol::EccProtocolResult;
+using org::interconnection::v2::protocol::EcSuit;
 
 namespace {
-std::vector<EccProtocolProposal> ExtractEccParams(
+std::vector<EccProtocolProposal> ExtractReqEccParams(
     const std::vector<HandshakeRequestV2> &requests) {
   int enum_field_num = HandshakeRequestV2::kProtocolFamiliesFieldNumber;
   int param_field_num = HandshakeRequestV2::kProtocolFamilyParamsFieldNumber;
@@ -33,23 +61,22 @@ std::vector<EccProtocolProposal> ExtractEccParams(
       requests, enum_field_num, param_field_num, PROTOCOL_FAMILY_ECC);
 }
 
-// TODO: 更新接口
-std::set<int32_t> IntersectCurves(
-    const std::vector<EccProtocolProposal> &ecc_params) {
-  int tag_num = 2;
-  return util::IntersectParamItems<EccProtocolProposal>(ecc_params, tag_num);
+std::optional<EccProtocolResult> ExtractRspEccParam(
+    const HandshakeResponseV2 &response) {
+  return ExtractRspPfParam<EccProtocolResult>(response, PROTOCOL_FAMILY_ECC);
 }
 
-std::set<int32_t> IntersectHash2CurveStrategies(
+std::set<EcSuit> IntersectEcSuits(
     const std::vector<EccProtocolProposal> &ecc_params) {
-  int tag_num = 3;
-  return util::IntersectParamItems<EccProtocolProposal>(ecc_params, tag_num);
+  int field_num = EccProtocolProposal::kEcSuitsFieldNumber;
+  return util::IntersectParamItems<EccProtocolProposal, EcSuit>(ecc_params,
+                                                                field_num);
 }
 
 std::set<int32_t> IntersectPointOctetFormats(
     const std::vector<EccProtocolProposal> &ecc_params) {
-  int tag_num = EccProtocolProposal::kPointOctetFormatFieldNumber;
-  return util::IntersectParamItems<EccProtocolProposal>(ecc_params, tag_num);
+  int field_num = EccProtocolProposal::kPointOctetFormatFieldNumber;
+  return util::IntersectParamItems<EccProtocolProposal>(ecc_params, field_num);
 }
 
 }  // namespace
@@ -78,9 +105,13 @@ HandshakeRequestV2 EcdhPsiV2Handler::BuildHandshakeRequest() {
   request.add_protocol_families(PROTOCOL_FAMILY_ECC);
   EccProtocolProposal ecc_param;
   ecc_param.add_supported_versions(1);
-  //  ecc_param.add_curves(ctx_->curve_type);
-  //  ecc_param.add_hash2curve_strategies(ctx_->hash_to_curve_strategy);
+  auto *ec_suit = ecc_param.add_ec_suits();
+  ec_suit->set_curve(ctx_->curve_type);
+  ec_suit->set_hash(ctx_->hash_type);
+  ec_suit->set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
   ecc_param.add_point_octet_format(ctx_->point_octet_format);
+  ecc_param.set_support_point_truncation(ctx_->bit_length_after_truncated !=
+                                         -1);
   request.add_protocol_family_params()->PackFrom(ecc_param);
 
   PsiDataIoProposal psi_io;
@@ -107,22 +138,34 @@ status::ErrorStatus EcdhPsiV2Handler::NegotiateHandshakeParams(
   return status::OkStatus();
 }
 
-bool EcdhPsiV2Handler::NegotiateCurves(
+bool EcdhPsiV2Handler::NegotiateEcSuits(
     const std::vector<EccProtocolProposal> &ecc_params) {
-  auto curves = IntersectCurves(ecc_params);
-  return curves.find(ctx_->curve_type) != curves.end();
-}
-
-bool EcdhPsiV2Handler::NegotiateHash2CurveStrategies(
-    const std::vector<EccProtocolProposal> &ecc_params) {
-  auto strategies = IntersectHash2CurveStrategies(ecc_params);
-  return strategies.find(ctx_->hash_to_curve_strategy) != strategies.end();
+  auto ec_suits = IntersectEcSuits(ecc_params);
+  EcSuit ec_suit;
+  ec_suit.set_curve(ctx_->curve_type);
+  ec_suit.set_hash(ctx_->hash_type);
+  ec_suit.set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
+  return ec_suits.find(ec_suit) != ec_suits.end();
 }
 
 bool EcdhPsiV2Handler::NegotiatePointOctetFormats(
     const std::vector<EccProtocolProposal> &ecc_params) {
   auto formats = IntersectPointOctetFormats(ecc_params);
   return formats.find(ctx_->point_octet_format) != formats.end();
+}
+
+bool EcdhPsiV2Handler::NegotiateBitLengthAfterTruncated(
+    const std::vector<EccProtocolProposal> &ecc_params) {
+  int field_num = EccProtocolProposal::kSupportPointTruncationFieldNumber;
+  auto optional =
+      util::AlignParamItem<EccProtocolProposal, bool>(ecc_params, field_num);
+  bool support_point_trunc = optional.has_value() && optional.value();
+
+  if (!support_point_trunc) {
+    ctx_->bit_length_after_truncated = -1;
+  }
+
+  return true;
 }
 
 bool EcdhPsiV2Handler::NegotiateResultToRank(
@@ -136,22 +179,22 @@ bool EcdhPsiV2Handler::NegotiateResultToRank(
 
 status::ErrorStatus EcdhPsiV2Handler::NegotiateEccParams(
     const std::vector<HandshakeRequestV2> &requests) {
-  auto ecc_params = ExtractEccParams(requests);
+  auto ecc_params = ExtractReqEccParams(requests);
   if (ecc_params.empty()) {
     return status::InvalidRequestError("certain request has no ecc params");
   }
 
-  //  if (!NegotiateCurves(ecc_params)) {
-  //    return status::HandshakeRefusedError("negotiate curves failed");
-  //  }
-
-  //  if (!NegotiateHash2CurveStrategies(ecc_params)) {
-  //    return status::HandshakeRefusedError("negotiate hash strategies
-  //    failed");
-  //  }
+  if (!NegotiateEcSuits(ecc_params)) {
+    return status::HandshakeRefusedError("negotiate ec suits failed");
+  }
 
   if (!NegotiatePointOctetFormats(ecc_params)) {
     return status::HandshakeRefusedError("negotiate point octet format failed");
+  }
+
+  if (!NegotiateBitLengthAfterTruncated(ecc_params)) {
+    return status::HandshakeRefusedError(
+        "negotiate bit length after truncated failed");
   }
 
   return status::OkStatus();
@@ -178,9 +221,12 @@ HandshakeResponseV2 EcdhPsiV2Handler::BuildHandshakeResponse() {
 
   response.add_protocol_family(PROTOCOL_FAMILY_ECC);
   EccProtocolResult ecc_param;
-  //  ecc_param.set_curve(ctx_->curve_type);
-  //  ecc_param.set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
+  auto ec_suit = ecc_param.mutable_ec_suits();
+  ec_suit->set_curve(ctx_->curve_type);
+  ec_suit->set_hash(ctx_->hash_type);
+  ec_suit->set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
   ecc_param.set_point_octet_format(ctx_->point_octet_format);
+  ecc_param.set_bit_length_after_truncated(ctx_->bit_length_after_truncated);
   response.add_protocol_family_params()->PackFrom(ecc_param);
 
   PsiDataIoProposal psi_io;
@@ -189,6 +235,30 @@ HandshakeResponseV2 EcdhPsiV2Handler::BuildHandshakeResponse() {
   response.mutable_io_params()->PackFrom(psi_io);
 
   return response;
+}
+
+bool EcdhPsiV2Handler::ProcessHandshakeResponse(
+    const HandshakeResponseV2 &response) {
+  if (!AlgoV2Handler::ProcessHandshakeResponse(response)) {
+    return false;
+  }
+
+  YACL_ENFORCE(response.algo() == ALGO_TYPE_ECDH_PSI);
+
+  auto ecc_param_optional = ExtractRspEccParam(response);
+  YACL_ENFORCE(ecc_param_optional.has_value());
+  const auto &ecc_param = ecc_param_optional.value();
+  YACL_ENFORCE(ecc_param.ec_suits().curve() == ctx_->curve_type);
+  YACL_ENFORCE(ecc_param.ec_suits().hash() == ctx_->hash_type);
+  YACL_ENFORCE(ecc_param.ec_suits().hash2curve_strategy() ==
+               ctx_->hash_to_curve_strategy);
+  YACL_ENFORCE(ecc_param.point_octet_format() == ctx_->point_octet_format);
+  if (ecc_param.bit_length_after_truncated() != -1) {
+    YACL_ENFORCE(ctx_->bit_length_after_truncated != -1);
+  }
+  ctx_->bit_length_after_truncated = ecc_param.bit_length_after_truncated();
+
+  return true;
 }
 
 void EcdhPsiV2Handler::RunAlgo() {

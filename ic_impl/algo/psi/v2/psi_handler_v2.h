@@ -33,6 +33,8 @@ class EcdhPsiV2Handler : public AlgoV2Handler {
   ~EcdhPsiV2Handler() override;
 
  private:
+  bool ProcessHandshakeResponse(const HandshakeResponseV2&) override;
+
   HandshakeRequestV2 BuildHandshakeRequest() override;
 
   HandshakeResponseV2 BuildHandshakeResponse() override;
@@ -44,15 +46,15 @@ class EcdhPsiV2Handler : public AlgoV2Handler {
   status::ErrorStatus NegotiateHandshakeParams(
       const std::vector<HandshakeRequestV2> &) override;
 
-  bool NegotiateCurves(
-      const std::vector<org::interconnection::v2::protocol::EccProtocolProposal>
-          &ecc_params);
-
-  bool NegotiateHash2CurveStrategies(
+  bool NegotiateEcSuits(
       const std::vector<org::interconnection::v2::protocol::EccProtocolProposal>
           &ecc_params);
 
   bool NegotiatePointOctetFormats(
+      const std::vector<org::interconnection::v2::protocol::EccProtocolProposal>
+          &ecc_params);
+
+  bool NegotiateBitLengthAfterTruncated(
       const std::vector<org::interconnection::v2::protocol::EccProtocolProposal>
           &ecc_params);
 

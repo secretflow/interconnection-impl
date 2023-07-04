@@ -18,8 +18,10 @@
 
 #include "interconnection/v2(rfc)/handshake/protocol_family/ecc.pb.h"
 
-DEFINE_string(curve_type, "Curve25519", "elliptic curve type");
-DEFINE_string(hash_strategy, "TRY_AND_REHASH", "hash to curve strategy");
+DEFINE_string(curve_type, "curve25519", "elliptic curve type");
+DEFINE_string(hash_type, "sha_256", "hash type");
+DEFINE_string(hash2curve_strategy, "direct_hash_as_point_x",
+              "hash to curve strategy");
 
 namespace ic_impl::protocol_family::ecc {
 
@@ -29,14 +31,24 @@ int32_t SuggestedCurveType() {
       FLAGS_curve_type);
 }
 
-int32_t SuggestedHashStrategy() {
+int32_t SuggestedHashType() {
+  return util::GetFlagValue(
+      org::interconnection::v2::protocol::HashType_descriptor(), "HASH_TYPE_",
+      FLAGS_hash_type);
+}
+
+int32_t SuggestedHash2curveStrategy() {
   return util::GetFlagValue(
       org::interconnection::v2::protocol::HashToCurveStrategy_descriptor(),
-      "HASH_TO_CURVE_STRATEGY_", FLAGS_hash_strategy);
+      "HASH_TO_CURVE_STRATEGY_", FLAGS_hash2curve_strategy);
 }
 
 int32_t SuggestedPointOctetFormat() {
   return org::interconnection::v2::protocol::POINT_OCTET_FORMAT_UNCOMPRESSED;
+}
+
+int32_t SuggestedBitLengthAfterTruncated() {
+  return -1;  // -1 means disable this optimization (do not truncate)
 }
 
 }  // namespace ic_impl::protocol_family::ecc

@@ -18,8 +18,12 @@ namespace ic_impl::protocol_family::ecc {
 
 int32_t SuggestedCurveType();
 
-int32_t SuggestedHashStrategy();
+int32_t SuggestedHashType();
+
+int32_t SuggestedHash2curveStrategy();
 
 int32_t SuggestedPointOctetFormat();
+
+int32_t SuggestedBitLengthAfterTruncated();
 
 }  // namespace ic_impl::protocol_family::ecc
