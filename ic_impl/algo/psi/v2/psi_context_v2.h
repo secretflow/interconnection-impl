@@ -22,10 +22,12 @@ class BucketPsi;
 
 namespace ic_impl::algo::psi::v2 {
 
-struct EcdhPsiContext {  // TODO: change name to V2?
+struct EcdhPsiContext {
   int32_t curve_type;
+  int32_t hash_type;
   int32_t hash_to_curve_strategy;
   int32_t point_octet_format;
+  int32_t bit_length_after_truncated;
   int64_t item_num;
   int32_t result_to_rank;
   std::shared_ptr<IcContext> ic_ctx;
@@ -34,7 +36,6 @@ struct EcdhPsiContext {  // TODO: change name to V2?
 std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
     std::shared_ptr<IcContext>);
 
-std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
-    const EcdhPsiContext &);  // TODO: 放到别处
+std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(const EcdhPsiContext &);
 
 }  // namespace ic_impl::algo::psi::v2

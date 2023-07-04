@@ -31,12 +31,23 @@ DEFINE_int32(result_to_rank, -1, "which rank gets the result");
 
 namespace ic_impl::algo::psi::v2 {
 
+using org::interconnection::v2::protocol::CURVE_TYPE_CURVE25519;
+using org::interconnection::v2::protocol::CURVE_TYPE_SM2;
+using org::interconnection::v2::protocol::HASH_TYPE_SHA_256;
+using org::interconnection::v2::protocol::
+    HASH_TO_CURVE_STRATEGY_DIRECT_HASH_AS_POINT_X;
+using org::interconnection::v2::protocol::HASH_TO_CURVE_STRATEGY_TRY_AND_REHASH;
+
 std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
     std::shared_ptr<IcContext> ic_context) {
   auto ctx = std::make_shared<EcdhPsiContext>();
   ctx->curve_type = protocol_family::ecc::SuggestedCurveType();
-  ctx->hash_to_curve_strategy = protocol_family::ecc::SuggestedHashStrategy();
+  ctx->hash_type = protocol_family::ecc::SuggestedHashType();
+  ctx->hash_to_curve_strategy =
+      protocol_family::ecc::SuggestedHash2curveStrategy();
   ctx->point_octet_format = protocol_family::ecc::SuggestedPointOctetFormat();
+  ctx->bit_length_after_truncated =
+      protocol_family::ecc::SuggestedBitLengthAfterTruncated();
   ctx->result_to_rank = FLAGS_result_to_rank;  // TODO: check
 
   ctx->ic_ctx = std::move(ic_context);
@@ -64,10 +75,28 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
     config.set_receiver_rank(ctx.result_to_rank);
   }
 
-  // TODO: support sm2
-  if (ctx.curve_type ==
-      org::interconnection::v2::protocol::CURVE_TYPE_CURVE25519) {
-    config.set_curve_type(spu::psi::CurveType::CURVE_25519);
+  switch (ctx.curve_type) {
+    case CURVE_TYPE_CURVE25519: {
+      config.set_curve_type(spu::psi::CurveType::CURVE_25519);
+      YACL_ENFORCE(ctx.hash_type == HASH_TYPE_SHA_256,
+                   "Currently only support sha256 hash for curve25519");
+      YACL_ENFORCE(
+          ctx.hash_to_curve_strategy ==
+              HASH_TO_CURVE_STRATEGY_DIRECT_HASH_AS_POINT_X,
+          "Currently only support DIRECT_HASH_AS_POINT_X for curve25519");
+      break;
+    }
+    case CURVE_TYPE_SM2: {
+      config.set_curve_type(spu::psi::CurveType::CURVE_SM2);
+      YACL_ENFORCE(ctx.hash_type == HASH_TYPE_SHA_256,
+                   "Currently only support sha256 hash for sm2");
+      YACL_ENFORCE(
+          ctx.hash_to_curve_strategy == HASH_TO_CURVE_STRATEGY_TRY_AND_REHASH,
+          "Currently only support TRY_AND_REHASH for sm2");
+      break;
+    }
+    default:
+      YACL_THROW("Unspecified curve type: {}", ctx.curve_type);
   }
 
   return std::make_unique<spu::psi::BucketPsi>(config, ctx.ic_ctx->lctx, true);

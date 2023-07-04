@@ -269,16 +269,18 @@ bool LrHandler::ProcessHandshakeResponse(const HandshakeResponseV2& response) {
   ctx_->lr_param.batch_size = lr_param.batch_size();
   if (UsePenaltyTerm(lr_param.l0_norm())) {
     YACL_ENFORCE(UsePenaltyTerm(ctx_->lr_param.l0_norm));
-    ctx_->lr_param.l0_norm = lr_param.l0_norm();
   }
+  ctx_->lr_param.l0_norm = lr_param.l0_norm();
+
   if (UsePenaltyTerm(lr_param.l1_norm())) {
     YACL_ENFORCE(UsePenaltyTerm(ctx_->lr_param.l1_norm));
-    ctx_->lr_param.l1_norm = lr_param.l1_norm();
   }
+  ctx_->lr_param.l1_norm = lr_param.l1_norm();
+
   if (UsePenaltyTerm(lr_param.l2_norm())) {
     YACL_ENFORCE(UsePenaltyTerm(ctx_->lr_param.l2_norm));
-    ctx_->lr_param.l2_norm = lr_param.l2_norm();
   }
+  ctx_->lr_param.l2_norm = lr_param.l2_norm();
 
   // process optimizer parameters, currently only support SGD optimizer
   YACL_ENFORCE(lr_param.optimizer_name() ==
