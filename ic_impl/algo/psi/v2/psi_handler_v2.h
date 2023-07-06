@@ -17,8 +17,8 @@
 #include "ic_impl/algo/psi/v2/psi_context_v2.h"
 #include "ic_impl/handler.h"
 
-#include "interconnection/v2(rfc)/handshake/algos/psi.pb.h"
-#include "interconnection/v2(rfc)/handshake/protocol_family/ecc.pb.h"
+#include "interconnection/handshake/algos/psi.pb.h"
+#include "interconnection/handshake/protocol_family/ecc.pb.h"
 
 namespace spu::psi {
 class BucketPsi;
@@ -33,7 +33,7 @@ class EcdhPsiV2Handler : public AlgoV2Handler {
   ~EcdhPsiV2Handler() override;
 
  private:
-  bool ProcessHandshakeResponse(const HandshakeResponseV2&) override;
+  bool ProcessHandshakeResponse(const HandshakeResponseV2 &) override;
 
   HandshakeRequestV2 BuildHandshakeRequest() override;
 

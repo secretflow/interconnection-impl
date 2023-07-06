@@ -75,7 +75,7 @@ std::set<EcSuit> IntersectEcSuits(
 
 std::set<int32_t> IntersectPointOctetFormats(
     const std::vector<EccProtocolProposal> &ecc_params) {
-  int field_num = EccProtocolProposal::kPointOctetFormatFieldNumber;
+  int field_num = EccProtocolProposal::kPointOctetFormatsFieldNumber;
   return util::IntersectParamItems<EccProtocolProposal>(ecc_params, field_num);
 }
 
@@ -109,7 +109,7 @@ HandshakeRequestV2 EcdhPsiV2Handler::BuildHandshakeRequest() {
   ec_suit->set_curve(ctx_->curve_type);
   ec_suit->set_hash(ctx_->hash_type);
   ec_suit->set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
-  ecc_param.add_point_octet_format(ctx_->point_octet_format);
+  ecc_param.add_point_octet_formats(ctx_->point_octet_format);
   ecc_param.set_support_point_truncation(ctx_->bit_length_after_truncated !=
                                          -1);
   request.add_protocol_family_params()->PackFrom(ecc_param);
@@ -118,7 +118,7 @@ HandshakeRequestV2 EcdhPsiV2Handler::BuildHandshakeRequest() {
   psi_io.add_supported_versions(1);
   psi_io.set_item_num(ctx_->item_num);
   psi_io.set_result_to_rank(ctx_->result_to_rank);
-  request.mutable_io_params()->PackFrom(psi_io);
+  request.mutable_io_param()->PackFrom(psi_io);
 
   return request;
 }
@@ -219,9 +219,9 @@ HandshakeResponseV2 EcdhPsiV2Handler::BuildHandshakeResponse() {
   response.mutable_header()->set_error_code(org::interconnection::OK);
   response.set_algo(ALGO_TYPE_ECDH_PSI);
 
-  response.add_protocol_family(PROTOCOL_FAMILY_ECC);
+  response.add_protocol_families(PROTOCOL_FAMILY_ECC);
   EccProtocolResult ecc_param;
-  auto ec_suit = ecc_param.mutable_ec_suits();
+  auto ec_suit = ecc_param.mutable_ec_suit();
   ec_suit->set_curve(ctx_->curve_type);
   ec_suit->set_hash(ctx_->hash_type);
   ec_suit->set_hash2curve_strategy(ctx_->hash_to_curve_strategy);
@@ -232,7 +232,7 @@ HandshakeResponseV2 EcdhPsiV2Handler::BuildHandshakeResponse() {
   PsiDataIoProposal psi_io;
   psi_io.set_item_num(ctx_->item_num);
   psi_io.set_result_to_rank(ctx_->result_to_rank);
-  response.mutable_io_params()->PackFrom(psi_io);
+  response.mutable_io_param()->PackFrom(psi_io);
 
   return response;
 }
@@ -248,9 +248,9 @@ bool EcdhPsiV2Handler::ProcessHandshakeResponse(
   auto ecc_param_optional = ExtractRspEccParam(response);
   YACL_ENFORCE(ecc_param_optional.has_value());
   const auto &ecc_param = ecc_param_optional.value();
-  YACL_ENFORCE(ecc_param.ec_suits().curve() == ctx_->curve_type);
-  YACL_ENFORCE(ecc_param.ec_suits().hash() == ctx_->hash_type);
-  YACL_ENFORCE(ecc_param.ec_suits().hash2curve_strategy() ==
+  YACL_ENFORCE(ecc_param.ec_suit().curve() == ctx_->curve_type);
+  YACL_ENFORCE(ecc_param.ec_suit().hash() == ctx_->hash_type);
+  YACL_ENFORCE(ecc_param.ec_suit().hash2curve_strategy() ==
                ctx_->hash_to_curve_strategy);
   YACL_ENFORCE(ecc_param.point_octet_format() == ctx_->point_octet_format);
   if (ecc_param.bit_length_after_truncated() != -1) {

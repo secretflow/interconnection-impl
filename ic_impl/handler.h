@@ -17,8 +17,8 @@
 #include "ic_impl/status.h"
 #include "ic_impl/util.h"
 
-#include "interconnection/algos/psi.pb.h"
-#include "interconnection/v2(rfc)/handshake/entry.pb.h"
+#include "interconnection/handshake/entry.pb.h"
+#include "interconnection/legacy/algos/psi.pb.h"
 
 namespace ic_impl {
 
@@ -115,7 +115,7 @@ std::vector<ParamType> ExtractReqPfParams(
 template <typename ParamType>
 std::vector<ParamType> ExtractReqIoParams(
     const std::vector<HandshakeRequestV2> &requests) {
-  int field_num = HandshakeRequestV2::kIoParamsFieldNumber;
+  int field_num = HandshakeRequestV2::kIoParamFieldNumber;
   return util::ExtractParams<HandshakeRequestV2, ParamType>(requests,
                                                             field_num);
 }
@@ -134,7 +134,7 @@ std::optional<ParamType> ExtractRspOpParam(const HandshakeResponseV2 &response,
 template <typename ParamType>
 std::optional<ParamType> ExtractRspPfParam(const HandshakeResponseV2 &response,
                                            int32_t pf_enum) {
-  int enum_filed_num = HandshakeResponseV2::kProtocolFamilyFieldNumber;
+  int enum_filed_num = HandshakeResponseV2::kProtocolFamiliesFieldNumber;
   int param_filed_num = HandshakeResponseV2::kProtocolFamilyParamsFieldNumber;
   return util::ExtractParam<HandshakeResponseV2, ParamType>(
       response, enum_filed_num, param_filed_num, pf_enum);

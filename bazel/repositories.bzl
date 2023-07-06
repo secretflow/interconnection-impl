@@ -17,9 +17,9 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 SECRETFLOW_GIT = "https://github.com/secretflow"
 
-SPU_COMMIT_ID  = "90b874854dfc6615632b399a2c7899bd155e783b"
+SPU_COMMIT_ID  = "b9665e894e78d6b0d28af4b4999f59551502bfd5"
 
-IC_COMMIT_ID  = "aa951609c533091ff9ffb38d4bd60f6e2aba7e60"
+IC_COMMIT_ID  = "a2ffff21a528456c383a113f6a57b98b3c9de6fe"
 
 SPU_REPOSITORY = "SPU"
 

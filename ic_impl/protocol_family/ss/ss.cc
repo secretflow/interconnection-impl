@@ -18,7 +18,7 @@
 
 #include "ic_impl/util.h"
 
-#include "interconnection/v2(rfc)/handshake/protocol_family/ss.pb.h"
+#include "interconnection/handshake/protocol_family/ss.pb.h"
 
 DEFINE_string(protocol, "semi2k", "ss protocol suggested");
 

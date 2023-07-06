@@ -21,9 +21,9 @@
 #include "ic_impl/algo/lr/lr_context.h"
 #include "ic_impl/handler.h"
 
-#include "interconnection/v2(rfc)/handshake/algos/lr.pb.h"
-#include "interconnection/v2(rfc)/handshake/op/sigmoid.pb.h"
-#include "interconnection/v2(rfc)/handshake/protocol_family/ss.pb.h"
+#include "interconnection/handshake/algos/lr.pb.h"
+#include "interconnection/handshake/op/sigmoid.pb.h"
+#include "interconnection/handshake/protocol_family/ss.pb.h"
 
 namespace spu {
 class SPUContext;

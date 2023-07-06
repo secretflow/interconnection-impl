@@ -18,7 +18,7 @@
 
 #include "ic_impl/util.h"
 
-#include "interconnection/v2(rfc)/handshake/entry.pb.h"
+#include "interconnection/handshake/entry.pb.h"
 
 DEFINE_string(parties, "127.0.0.1:9530,127.0.0.1:9531",
               "server list, format: host1:port1[,host2:port2, ...].");

@@ -16,7 +16,7 @@
 
 #include "ic_impl/util.h"
 
-#include "interconnection/v2(rfc)/handshake/op/sigmoid.pb.h"
+#include "interconnection/handshake/op/sigmoid.pb.h"
 
 DEFINE_string(sigmoid_mode, "Minimax_1", "Sigmoid approximation method");
 

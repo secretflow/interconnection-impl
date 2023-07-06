@@ -102,10 +102,10 @@ cc_library(
 
 cc_proto_library(
     name = "handshake_cc_proto",
-    deps = ["@org_interconnection//interconnection/v2(rfc)/handshake"],
+    deps = ["@org_interconnection//interconnection/handshake"],
 )
 
 cc_proto_library(
     name = "psi_cc_proto",
-    deps = ["@org_interconnection//interconnection/algos"],
+    deps = ["@org_interconnection//interconnection/legacy/algos"],
 )

@@ -16,7 +16,7 @@
 
 #include <variant>
 
-#include "interconnection/v2(rfc)/handshake/algos/optimizer.pb.h"
+#include "interconnection/handshake/algos/optimizer.pb.h"
 
 namespace ic_impl::algo::optimizer {
 
