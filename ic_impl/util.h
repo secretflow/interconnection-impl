@@ -246,6 +246,12 @@ AlmostZero(T x) {
   return AlmostEqual(x, static_cast<T>(0), 2);
 }
 
+template <class T>
+typename std::enable_if<!std::numeric_limits<T>::is_integer, bool>::type
+AlmostOne(T x) {
+  return AlmostEqual(x, static_cast<T>(1), 2);
+}
+
 bool ToBool(std::string_view str);
 
 char *GetParamEnv(std::string_view env_name);

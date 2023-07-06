@@ -19,7 +19,7 @@
 #include "ic_impl/op/sigmoid/sigmoid.h"
 #include "ic_impl/util.h"
 
-#include "interconnection/v2(rfc)/handshake/algos/lr.pb.h"
+#include "interconnection/handshake/algos/lr.pb.h"
 
 DEFINE_bool(has_label, false, "if true, label is the last column of dataset");
 DEFINE_int64(batch_size, 21, "size of each batch");

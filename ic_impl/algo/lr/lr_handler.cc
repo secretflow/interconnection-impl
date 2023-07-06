@@ -64,9 +64,12 @@ using org::interconnection::v2::protocol::TRUNC_MODE_PROBABILISTIC;
 namespace {
 
 std::optional<std::string> GetIoFileNameFromEnv(bool input) {
-  char* host_url = std::getenv("system.storage.host.url");
+  char* host_url = std::getenv("system.storage");
   if (!host_url || !absl::StartsWith(host_url, "file://")) {
-    return std::nullopt;
+    host_url = std::getenv("system.storage.host.url");
+    if (!host_url || !absl::StartsWith(host_url, "file://")) {
+      return std::nullopt;
+    }
   }
   std::string_view root_path = host_url + 6;
 
@@ -154,13 +157,13 @@ std::set<int32_t> IntersectOptimizers(
 
 std::set<int32_t> IntersectLastBatchPolicies(
     const std::vector<LrHyperparamsProposal>& lr_params) {
-  int field_num = LrHyperparamsProposal::kLastBatchPolicyFieldNumber;
+  int field_num = LrHyperparamsProposal::kLastBatchPoliciesFieldNumber;
   return util::IntersectParamItems<LrHyperparamsProposal>(lr_params, field_num);
 }
 
 std::set<int32_t> IntersectSigmoidModes(
     const std::vector<SigmoidParamsProposal>& sigmoid_params) {
-  int field_num = SigmoidParamsProposal::kSigmoidModeFieldNumber;
+  int field_num = SigmoidParamsProposal::kSigmoidModesFieldNumber;
   return util::IntersectParamItems<SigmoidParamsProposal>(sigmoid_params,
                                                           field_num);
 }
@@ -183,19 +186,19 @@ std::set<int32_t> IntersectProtocols(
 
 std::set<int32_t> IntersectFieldTypes(
     const std::vector<SSProtocolProposal>& ss_params) {
-  int field_num = SSProtocolProposal::kFieldTypeFieldNumber;
+  int field_num = SSProtocolProposal::kFieldTypesFieldNumber;
   return util::IntersectParamItems<SSProtocolProposal>(ss_params, field_num);
 }
 
 std::set<int32_t> IntersectShardSerializeFormats(
     const std::vector<SSProtocolProposal>& ss_params) {
-  int field_num = SSProtocolProposal::kShardSerializeFormatFieldNumber;
+  int field_num = SSProtocolProposal::kShardSerializeFormatsFieldNumber;
   return util::IntersectParamItems<SSProtocolProposal>(ss_params, field_num);
 }
 
 std::set<int32_t> IntersectPrgCryptoTypes(
     const std::vector<SSProtocolProposal>& ss_params) {
-  int filed_num_1 = SSProtocolProposal::kPrgConfigFieldNumber;
+  int filed_num_1 = SSProtocolProposal::kPrgConfigsFieldNumber;
   int field_num_2 = PrgConfigProposal::kCryptoTypeFieldNumber;
   return util::IntersectParamItems<SSProtocolProposal, PrgConfigProposal>(
       ss_params, filed_num_1, field_num_2);
@@ -203,7 +206,7 @@ std::set<int32_t> IntersectPrgCryptoTypes(
 
 std::set<int32_t> IntersectTtpVersions(
     const std::vector<SSProtocolProposal>& ss_params) {
-  int filed_num_1 = SSProtocolProposal::kTripleConfigFieldNumber;
+  int filed_num_1 = SSProtocolProposal::kTripleConfigsFieldNumber;
   int field_num_2 = TripleConfigProposal::kSeverVersionFieldNumber;
   return util::IntersectParamItems<SSProtocolProposal, TripleConfigProposal>(
       ss_params, filed_num_1, field_num_2);
@@ -264,7 +267,7 @@ bool LrHandler::ProcessHandshakeResponse(const HandshakeResponseV2& response) {
   // process lr hyperparameters
   LrHyperparamsResult lr_param;
   YACL_ENFORCE(response.algo() == ALGO_TYPE_SS_LR);
-  YACL_ENFORCE(response.algo_params().UnpackTo(&lr_param));
+  YACL_ENFORCE(response.algo_param().UnpackTo(&lr_param));
   ctx_->lr_param.num_epoch = lr_param.num_epoch();
   ctx_->lr_param.batch_size = lr_param.batch_size();
   if (UsePenaltyTerm(lr_param.l0_norm())) {
@@ -286,12 +289,12 @@ bool LrHandler::ProcessHandshakeResponse(const HandshakeResponseV2& response) {
   YACL_ENFORCE(lr_param.optimizer_name() ==
                org::interconnection::v2::algos::OPTIMIZER_SGD);
   org::interconnection::v2::algos::SgdOptimizer optimizer;
-  YACL_ENFORCE(lr_param.optimizer_params().UnpackTo(&optimizer));
+  YACL_ENFORCE(lr_param.optimizer_param().UnpackTo(&optimizer));
   std::get<org::interconnection::v2::algos::SgdOptimizer>(ctx_->optimizer.param)
       .CopyFrom(optimizer);
 
   LrDataIoResult io_param;
-  YACL_ENFORCE(response.io_params().UnpackTo(&io_param));
+  YACL_ENFORCE(response.io_param().UnpackTo(&io_param));
   YACL_ENFORCE(io_param.sample_size() == ctx_->io_param.sample_size);
   YACL_ENFORCE(io_param.feature_nums().size() ==
                ctx_->io_param.feature_nums.size());
@@ -342,7 +345,7 @@ HandshakeRequestV2 LrHandler::BuildHandshakeRequest() {
   LrHyperparamsProposal lr_param;
   lr_param.add_supported_versions(1);
   lr_param.add_optimizers(ctx_->optimizer.type);
-  lr_param.add_last_batch_policy(ctx_->lr_param.last_batch_policy);
+  lr_param.add_last_batch_policies(ctx_->lr_param.last_batch_policy);
   lr_param.set_use_l2_norm(UsePenaltyTerm(
       ctx_->lr_param.l2_norm));  // Currently only support l2 norm
   request.add_algo_params()->PackFrom(lr_param);
@@ -350,7 +353,7 @@ HandshakeRequestV2 LrHandler::BuildHandshakeRequest() {
   request.add_ops(OP_TYPE_SIGMOID);
   SigmoidParamsProposal sigmoid_param;
   sigmoid_param.add_supported_versions(1);
-  sigmoid_param.add_sigmoid_mode(ctx_->sigmoid_mode);
+  sigmoid_param.add_sigmoid_modes(ctx_->sigmoid_mode);
   request.add_op_params()->PackFrom(sigmoid_param);
 
   for (const auto& family : ctx_->ic_ctx->protocol_families) {
@@ -359,19 +362,19 @@ HandshakeRequestV2 LrHandler::BuildHandshakeRequest() {
       SSProtocolProposal protocol_param;
       protocol_param.add_supported_versions(1);
       protocol_param.add_supported_protocols(ctx_->ss_param.protocol);
-      protocol_param.add_field_type(ctx_->ss_param.field_type);
-      protocol_param.add_shard_serialize_format(
+      protocol_param.add_field_types(ctx_->ss_param.field_type);
+      protocol_param.add_shard_serialize_formats(
           ctx_->ss_param.shard_serialize_format);
       // set truncation mode
-      auto* trunc_mode_param = protocol_param.add_trunc_mode();
+      auto* trunc_mode_param = protocol_param.add_trunc_modes();
       trunc_mode_param->add_supported_versions(1);
       trunc_mode_param->set_method(TRUNC_MODE_PROBABILISTIC);
       // set PRG parameters, currently only support AES128_CTR crypto type
-      auto prg_param = protocol_param.add_prg_config();
+      auto prg_param = protocol_param.add_prg_configs();
       prg_param->add_supported_versions(1);
       prg_param->set_crypto_type(CRYPTO_TYPE_AES128_CTR);
       // set TTP parameters
-      auto ttp_param = protocol_param.add_triple_config();
+      auto ttp_param = protocol_param.add_triple_configs();
       ttp_param->add_supported_versions(1);
       ttp_param->set_sever_version(ctx_->ttp_config.ttp_server_version);
 
@@ -385,7 +388,7 @@ HandshakeRequestV2 LrHandler::BuildHandshakeRequest() {
   lr_io.set_sample_size(ctx_->io_param.sample_size);
   lr_io.set_feature_num(ctx_->io_param.feature_nums.at(self_rank));
   lr_io.set_has_label(ctx_->HasLabel());
-  request.mutable_io_params()->PackFrom(lr_io);
+  request.mutable_io_param()->PackFrom(lr_io);
 
   return request;
 }
@@ -492,7 +495,7 @@ status::ErrorStatus LrHandler::NegotiateLrIoParams(
     const std::vector<HandshakeRequestV2>& requests) {
   for (const auto& request : requests) {
     LrDataIoProposal io_param;
-    if (!request.io_params().UnpackTo(&io_param)) {
+    if (!request.io_param().UnpackTo(&io_param)) {
       return status::InvalidRequestError(
           "certain request has invalid io param");
     }
@@ -597,7 +600,7 @@ std::set<int32_t> LrHandler::IntersectTruncModes(
   for (const auto& ss_param : ss_params) {
     trunc_modes.resize(trunc_modes.size() + 1);
 
-    for (const auto& item : ss_param.trunc_mode()) {
+    for (const auto& item : ss_param.trunc_modes()) {
       if (!item.compatible_protocols().empty() &&
           (std::find(item.compatible_protocols().begin(),
                      item.compatible_protocols().end(),
@@ -657,9 +660,9 @@ HandshakeResponseV2 LrHandler::BuildHandshakeResponse() {
   org::interconnection::v2::algos::SgdOptimizer optimizer;
   optimizer.CopyFrom(std::get<org::interconnection::v2::algos::SgdOptimizer>(
       ctx_->optimizer.param));  // Currently only support SGD optimizer
-  lr_param.mutable_optimizer_params()->PackFrom(optimizer);
+  lr_param.mutable_optimizer_param()->PackFrom(optimizer);
 
-  response.mutable_algo_params()->PackFrom(lr_param);
+  response.mutable_algo_param()->PackFrom(lr_param);
 
   // set op params
   response.add_ops(OP_TYPE_SIGMOID);
@@ -668,7 +671,7 @@ HandshakeResponseV2 LrHandler::BuildHandshakeResponse() {
   response.add_op_params()->PackFrom(sigmoid_param);
 
   // set ss params
-  response.add_protocol_family(PROTOCOL_FAMILY_SS);
+  response.add_protocol_families(PROTOCOL_FAMILY_SS);
   SSProtocolResult ss_param;
   ss_param.set_protocol(ctx_->ss_param.protocol);
   ss_param.set_field_type(ctx_->ss_param.field_type);
@@ -694,7 +697,7 @@ HandshakeResponseV2 LrHandler::BuildHandshakeResponse() {
   io_param.mutable_feature_nums()->Add(ctx_->io_param.feature_nums.begin(),
                                        ctx_->io_param.feature_nums.end());
   io_param.set_label_rank(ctx_->io_param.label_rank);
-  response.mutable_io_params()->PackFrom(io_param);
+  response.mutable_io_param()->PackFrom(io_param);
 
   return response;
 }
@@ -708,21 +711,21 @@ spu::Value inference(spu::SPUContext* ctx, const spu::Value& x,
   return spu::kernel::hal::matmul(ctx, padded_x, weight);
 }
 
-float SSE(const xt::xarray<float>& y_true, const xt::xarray<float>& y_pred) {
-  float sse = 0;
-
+float Accuracy(const xt::xarray<float>& y_true,
+               const xt::xarray<float>& y_pred) {
+  int64_t total_num = 0;
+  int64_t accurate_num = 0;
   for (auto y_true_iter = y_true.begin(), y_pred_iter = y_pred.begin();
        y_true_iter != y_true.end() && y_pred_iter != y_pred.end();
        ++y_pred_iter, ++y_true_iter) {
-    sse += std::pow(*y_true_iter - *y_pred_iter, 2);
+    if ((util::AlmostZero(*y_true_iter) && *y_pred_iter < 0.5) ||
+        (util::AlmostOne(*y_true_iter) && *y_pred_iter >= 0.5)) {
+      ++accurate_num;
+    }
+    ++total_num;
   }
-  return sse;
-}
 
-float MSE(const xt::xarray<float>& y_true, const xt::xarray<float>& y_pred) {
-  auto sse = SSE(y_true, y_pred);
-
-  return sse / static_cast<float>(y_true.size());
+  return accurate_num / static_cast<float>(total_num);
 }
 
 void ProduceOutput(spu::SPUContext* sctx, const spu::Value& w) {
@@ -756,8 +759,8 @@ void LrHandler::RunAlgo() {
   xt::xarray<float> revealed_scores = spu::kernel::hal::dump_public_as<float>(
       sctx.get(), spu::kernel::hal::reveal(sctx.get(), scores));
 
-  auto mse = MSE(revealed_labels, revealed_scores);
-  std::cout << "MSE = " << mse << "\n";  //
+  auto accuracy = Accuracy(revealed_labels, revealed_scores);
+  std::cout << "Accuracy = " << accuracy << "\n";
 
   ProduceOutput(sctx.get(), w);
 }
@@ -928,10 +931,9 @@ spu::Value LrHandler::TrainStep(spu::SPUContext* ctx, const spu::Value& x,
   if (UsePenaltyTerm(ctx_->lr_param.l2_norm)) {
     auto w_with_zero_bias =
         spu::kernel::hal::slice(ctx, w, {0, 0}, {w.shape()[0] - 1, 1}, {});
+    auto zeros = spu::kernel::hal::zeros(ctx, spu::DT_F32, {1, 1});
     auto w_superfix = spu::kernel::hal::concatenate(
-        ctx,
-        {w_with_zero_bias, spu::kernel::hal::zeros(ctx, spu::DT_F32, {1, 1})},
-        0);
+        ctx, {w_with_zero_bias, spu::kernel::hal::seal(ctx, zeros)}, 0);
     auto l2_norm = spu::kernel::hal::constant(
         ctx, static_cast<float>(ctx_->lr_param.l2_norm), spu::DT_F32);
 

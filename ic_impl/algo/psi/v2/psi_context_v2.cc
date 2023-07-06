@@ -19,7 +19,7 @@
 
 #include "ic_impl/protocol_family/ecc/ecc.h"
 
-#include "interconnection/v2(rfc)/handshake/protocol_family/ecc.pb.h"
+#include "interconnection/handshake/protocol_family/ecc.pb.h"
 
 DEFINE_string(in_path, "data.csv", "psi data in file path");
 DEFINE_string(field_names, "id", "field names");
@@ -33,10 +33,12 @@ namespace ic_impl::algo::psi::v2 {
 
 using org::interconnection::v2::protocol::CURVE_TYPE_CURVE25519;
 using org::interconnection::v2::protocol::CURVE_TYPE_SM2;
-using org::interconnection::v2::protocol::HASH_TYPE_SHA_256;
 using org::interconnection::v2::protocol::
     HASH_TO_CURVE_STRATEGY_DIRECT_HASH_AS_POINT_X;
 using org::interconnection::v2::protocol::HASH_TO_CURVE_STRATEGY_TRY_AND_REHASH;
+using org::interconnection::v2::protocol::HASH_TYPE_SHA_256;
+using org::interconnection::v2::protocol::POINT_OCTET_FORMAT_UNCOMPRESSED;
+using org::interconnection::v2::protocol::POINT_OCTET_FORMAT_X962_COMPRESSED;
 
 std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
     std::shared_ptr<IcContext> ic_context) {
@@ -84,6 +86,8 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
           ctx.hash_to_curve_strategy ==
               HASH_TO_CURVE_STRATEGY_DIRECT_HASH_AS_POINT_X,
           "Currently only support DIRECT_HASH_AS_POINT_X for curve25519");
+      YACL_ENFORCE(ctx.point_octet_format == POINT_OCTET_FORMAT_UNCOMPRESSED,
+                   "Currently only support uncompressed format for curve25519");
       break;
     }
     case CURVE_TYPE_SM2: {
@@ -93,6 +97,9 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
       YACL_ENFORCE(
           ctx.hash_to_curve_strategy == HASH_TO_CURVE_STRATEGY_TRY_AND_REHASH,
           "Currently only support TRY_AND_REHASH for sm2");
+      YACL_ENFORCE(
+          ctx.point_octet_format == POINT_OCTET_FORMAT_X962_COMPRESSED,
+          "Currently only support ANSI X9.62 compressed format for sm2");
       break;
     }
     default:

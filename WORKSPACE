@@ -14,6 +14,9 @@
 
 workspace(name = "interconnection-impl")
 
+load("//bazel:repositories.bzl", "protocol_deps")
+protocol_deps()
+
 load("//bazel:repositories.bzl", "ic_impl_deps")
 ic_impl_deps()
 
@@ -24,9 +27,6 @@ spu_deps()
 # yacl
 load("@yacl//bazel:repositories.bzl", "yacl_deps")
 yacl_deps()
-
-load("//bazel:repositories.bzl", "protocol_deps")
-protocol_deps()
 
 # xla
 load("@xla//:workspace4.bzl", "xla_workspace4")
