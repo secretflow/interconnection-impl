@@ -18,7 +18,6 @@
 #include <fstream>
 
 #include "absl/functional/bind_front.h"
-#include "absl/strings/match.h"
 #include "gflags/gflags.h"
 #include "libspu/core/config.h"
 #include "libspu/core/encoding.h"
@@ -26,7 +25,6 @@
 #include "libspu/mpc/aby3/type.h"
 #include "libspu/mpc/factory.h"
 #include "libspu/mpc/semi2k/type.h"
-#include "nlohmann/json.hpp"
 #include "xtensor/xcsv.hpp"
 #include "xtensor/xio.hpp"
 
@@ -63,69 +61,17 @@ using org::interconnection::v2::protocol::TRUNC_MODE_PROBABILISTIC;
 
 namespace {
 
-std::optional<std::string> GetIoFileNameFromEnv(bool input) {
-  char* host_url = std::getenv("system.storage");
-  if (!host_url || !absl::StartsWith(host_url, "file://")) {
-    host_url = std::getenv("system.storage.host.url");
-    if (!host_url || !absl::StartsWith(host_url, "file://")) {
-      return std::nullopt;
-    }
-  }
-  std::string_view root_path = host_url + 6;
-
-  char* json_str = nullptr;
-  if (input) {
-    json_str = std::getenv("runtime.component.input.train_data");
-  } else {
-    json_str = std::getenv("runtime.component.output.train_data");
-  }
-
-  if (!json_str) {
-    return std::nullopt;
-  }
-
-  auto json_object = nlohmann::json::parse(json_str);
-  std::string relative_path = json_object.at("namespace");
-  std::string file_name = json_object.at("name");
-
-  std::string absolute_path = absl::StrCat(root_path, "/", relative_path);
-  if (!input) {
-    system(absl::StrCat("mkdir -p ", absolute_path).c_str());
-  }
-
-  return absl::StrCat(absolute_path, "/", file_name);
+std::string GetLrInputFileName() {
+  return util::GetInputFileName(FLAGS_dataset);
 }
 
-inline std::optional<std::string> GetInputFileNameFromEnv() {
-  return GetIoFileNameFromEnv(true);
-}
-
-inline std::optional<std::string> GetOutputFileNameFromEnv() {
-  return GetIoFileNameFromEnv(false);
-}
-
-std::string GetInputFileName() {
-  std::string_view input_file_name = FLAGS_dataset;
-  auto input_optional = GetInputFileNameFromEnv();
-  if (input_optional.has_value()) {
-    input_file_name = input_optional.value();
-  }
-
-  return input_file_name.data();
-}
-
-std::string GetOutputFileName() {
-  std::string output_file_name = absl::StrCat(FLAGS_lr_output, ".", FLAGS_rank);
-  auto output_optional = GetOutputFileNameFromEnv();
-  if (output_optional.has_value()) {
-    output_file_name = output_optional.value();
-  }
-
-  return output_file_name;
+std::string GetLrOutputFileName() {
+  return util::GetOutputFileName(
+      absl::StrCat(FLAGS_lr_output, ".", FLAGS_rank));
 }
 
 std::unique_ptr<xt::xarray<float>> ReadDataset() {
-  std::string input_file = GetInputFileName();
+  std::string input_file = GetLrInputFileName();
 
   std::ifstream file(input_file);
   YACL_ENFORCE(file, "open file={} failed", input_file);
@@ -735,7 +681,7 @@ void ProduceOutput(spu::SPUContext* sctx, const spu::Value& w) {
       w.data(), w.dtype(), sctx->config().fxp_fraction_bits(), &out_pt_type);
   YACL_ENFORCE(out_pt_type == spu::PT_F32);
 
-  std::string out_file_name = GetOutputFileName();
+  std::string out_file_name = GetLrOutputFileName();
   std::ofstream of(out_file_name);
   YACL_ENFORCE(of, "open file={} failed", out_file_name);
   for (auto it = w_output.begin(); it != w_output.end(); ++it) {

@@ -277,4 +277,8 @@ T GetParamEnv(std::string_view env_name, const T &default_value) {
   return default_value;
 }
 
+std::string GetInputFileName(std::string_view default_file);
+
+std::string GetOutputFileName(std::string_view default_file);
+
 }  // namespace ic_impl::util

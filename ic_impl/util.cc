@@ -16,7 +16,9 @@
 
 #include <cstdlib>
 
+#include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
+#include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 #include "yacl/link/factory.h"
 
@@ -110,6 +112,71 @@ bool ToBool(std::string_view str) {
 char* GetParamEnv(std::string_view env_name) {
   return std::getenv(
       absl::StrCat("runtime.component.parameter.", env_name).c_str());
+}
+
+namespace {
+
+std::optional<std::string> GetIoFileNameFromEnv(bool input) {
+  char* host_url = std::getenv("system.storage");
+  if (!host_url || !absl::StartsWith(host_url, "file://")) {
+    host_url = std::getenv("system.storage.host.url");
+    if (!host_url || !absl::StartsWith(host_url, "file://")) {
+      return std::nullopt;
+    }
+  }
+  std::string_view root_path = host_url + 6;
+
+  char* json_str = nullptr;
+  if (input) {
+    json_str = std::getenv("runtime.component.input.train_data");
+  } else {
+    json_str = std::getenv("runtime.component.output.train_data");
+  }
+
+  if (!json_str) {
+    return std::nullopt;
+  }
+
+  auto json_object = nlohmann::json::parse(json_str);
+  std::string relative_path = json_object.at("namespace");
+  std::string file_name = json_object.at("name");
+
+  std::string absolute_path = absl::StrCat(root_path, "/", relative_path);
+  if (!input) {
+    system(absl::StrCat("mkdir -p ", absolute_path).c_str());
+  }
+
+  return absl::StrCat(absolute_path, "/", file_name);
+}
+
+}  // namespace
+
+inline std::optional<std::string> GetInputFileNameFromEnv() {
+  return GetIoFileNameFromEnv(true);
+}
+
+inline std::optional<std::string> GetOutputFileNameFromEnv() {
+  return GetIoFileNameFromEnv(false);
+}
+
+std::string GetInputFileName(std::string_view default_file) {
+  std::string_view input_file_name = default_file;
+  auto input_optional = util::GetInputFileNameFromEnv();
+  if (input_optional.has_value()) {
+    input_file_name = input_optional.value();
+  }
+
+  return input_file_name.data();
+}
+
+std::string GetOutputFileName(std::string_view default_file) {
+  std::string_view output_file_name = default_file;
+  auto output_optional = util::GetOutputFileNameFromEnv();
+  if (output_optional.has_value()) {
+    output_file_name = output_optional.value();
+  }
+
+  return output_file_name.data();
 }
 
 }  // namespace ic_impl::util
