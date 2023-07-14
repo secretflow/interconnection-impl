@@ -79,6 +79,7 @@ cc_library(
         "@yacl//yacl/base:exception",
         "@yacl//yacl/link:factory",
         "@com_google_absl//absl/strings",
+        "@com_github_nlohmann_json//:json",
     ],
 )
 

@@ -25,7 +25,6 @@ cc_library(
         "//ic_impl:handler",
         "@spulib//libspu/mpc:factory",
         "@com_google_absl//absl/functional:bind_front",
-        "@com_github_nlohmann_json//:json",
     ]
 )
 

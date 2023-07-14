@@ -18,18 +18,37 @@
 #include "libspu/psi/bucket_psi.h"
 
 #include "ic_impl/protocol_family/ecc/ecc.h"
+#include "ic_impl/util.h"
 
 #include "interconnection/handshake/protocol_family/ecc.pb.h"
 
 DEFINE_string(in_path, "data.csv", "psi data in file path");
 DEFINE_string(field_names, "id", "field names");
 DEFINE_string(out_path, "", "psi out file path");
-DEFINE_bool(should_sort, false, "whether sort psi result");
-DEFINE_bool(precheck_input, false, "whether precheck input dataset");
 
 DEFINE_int32(result_to_rank, -1, "which rank gets the result");
 
 namespace ic_impl::algo::psi::v2 {
+
+namespace {
+
+std::string GetPsiInputFileName() {
+  return util::GetInputFileName(FLAGS_in_path);
+}
+
+std::string GetPsiOutputFileName() {
+  return util::GetOutputFileName(FLAGS_out_path);
+}
+
+std::string GetPsiInputFileFieldNames() {
+  return util::GetParamEnv("field_names", FLAGS_field_names);
+}
+
+int32_t SuggestedResultToRank() {
+  return util::GetParamEnv("result_to_rank", FLAGS_result_to_rank);
+}
+
+}  // namespace
 
 using org::interconnection::v2::protocol::CURVE_TYPE_CURVE25519;
 using org::interconnection::v2::protocol::CURVE_TYPE_SM2;
@@ -50,7 +69,7 @@ std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
   ctx->point_octet_format = protocol_family::ecc::SuggestedPointOctetFormat();
   ctx->bit_length_after_truncated =
       protocol_family::ecc::SuggestedBitLengthAfterTruncated();
-  ctx->result_to_rank = FLAGS_result_to_rank;  // TODO: check
+  ctx->result_to_rank = SuggestedResultToRank();  // TODO: check
 
   ctx->ic_ctx = std::move(ic_context);
 
@@ -60,13 +79,13 @@ std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
 std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
     const EcdhPsiContext &ctx) {
   spu::psi::BucketPsiConfig config;
-  config.mutable_input_params()->set_path(FLAGS_in_path);
-  auto field_list = absl::StrSplit(FLAGS_field_names, ',');
+  config.mutable_input_params()->set_path(GetPsiInputFileName());
+  auto field_list = absl::StrSplit(GetPsiInputFileFieldNames(), ',');
   config.mutable_input_params()->mutable_select_fields()->Add(
       field_list.begin(), field_list.end());
-  config.mutable_input_params()->set_precheck(FLAGS_precheck_input);
-  config.mutable_output_params()->set_path(FLAGS_out_path);
-  config.mutable_output_params()->set_need_sort(FLAGS_should_sort);
+  config.mutable_input_params()->set_precheck(false);
+  config.mutable_output_params()->set_path(GetPsiOutputFileName());
+  config.mutable_output_params()->set_need_sort(false);
 
   config.set_psi_type(spu::psi::PsiType::ECDH_PSI_2PC);
 
