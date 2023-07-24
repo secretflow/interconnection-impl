@@ -6,3 +6,4 @@ cmake-build-debug-remote
 bazel-*
 
 build
+.DS_Store
