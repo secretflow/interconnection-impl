@@ -268,7 +268,8 @@ void EcdhPsiV2Handler::RunAlgo() {
     spu::psi::PsiResultReport report;
     report.set_original_count(ctx_->item_num);
     uint64_t self_items_count = ctx_->item_num;
-    auto indices = bucket_psi_->RunPsi(self_items_count);
+    auto progress = std::make_shared<spu::psi::Progress>();
+    auto indices = bucket_psi_->RunPsi(progress, self_items_count);
     bucket_psi_->ProduceOutput(false, indices, report);
 
     SPDLOG_INFO("rank:{} original_count:{} intersection_count:{}",
