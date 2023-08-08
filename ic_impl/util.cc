@@ -21,8 +21,28 @@
 #include "nlohmann/json.hpp"
 #include "spdlog/spdlog.h"
 #include "yacl/link/factory.h"
+#include "yacl/link/transport/blackbox_interconnect/mock_transport.h"
 
 namespace ic_impl::util {
+
+namespace {
+
+void StartTransport() {
+  static yacl::link::transport::blackbox_interconnect::MockTransport transport;
+
+  brpc::ChannelOptions options;
+  {
+    options.protocol = "http";
+    options.connection_type = "";
+    options.connect_timeout_ms = 20000;
+    options.timeout_ms = 1e4;
+    options.max_retry = 3;
+  }
+
+  transport.StartFromEnv(options);
+}
+
+}  // namespace
 
 std::shared_ptr<yacl::link::Context> CreateLinkContextForBlackBox() {
   yacl::link::ContextDesc desc;
@@ -30,6 +50,11 @@ std::shared_ptr<yacl::link::Context> CreateLinkContextForBlackBox() {
   size_t self_rank;
   yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties,
                                                            self_rank);
+
+  if (util::GetParamEnv("start_transport", false)) {
+    StartTransport();
+  }
+
   return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
 }
 
