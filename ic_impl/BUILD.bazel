@@ -78,6 +78,7 @@ cc_library(
     deps = [
         "@yacl//yacl/base:exception",
         "@yacl//yacl/link:factory",
+        "@yacl//yacl/link/transport/blackbox_interconnect:mock_transport",
         "@com_google_absl//absl/strings",
         "@com_github_nlohmann_json//:json",
     ],
