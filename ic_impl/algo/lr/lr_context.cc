@@ -15,6 +15,7 @@
 #include "ic_impl/algo/lr/lr_context.h"
 
 #include "gflags/gflags.h"
+#include "nlohmann/json.hpp"
 
 #include "ic_impl/op/sigmoid/sigmoid.h"
 #include "ic_impl/util.h"
@@ -30,13 +31,11 @@ DEFINE_double(l0_norm, 0.0, "l0 norm");
 DEFINE_double(l1_norm, 0.0, "l1 norm");
 DEFINE_double(l2_norm, 0.5, "l2 norm");
 
+DECLARE_bool(disable_handshake);
+
 namespace ic_impl::algo::lr {
 
 namespace {
-
-bool SuggestedHasLabel() {
-  return util::GetParamEnv("has_label", FLAGS_has_label);
-}
 
 int64_t SuggestedNumEpoch() {
   return util::GetParamEnv("num_epoch", FLAGS_num_epoch);
@@ -71,13 +70,54 @@ LrHyperParam SuggestedLrHyperParam() {
   return lr_param;
 }
 
+int32_t GetLabelRank(const std::shared_ptr<IcContext>& ic_ctx) {
+  if (!FLAGS_disable_handshake) {
+    return FLAGS_has_label ? ic_ctx->lctx->Rank() : -1;
+  }
+
+  // get parameters from ENV
+  char* label_owner = util::GetParamEnv("label_owner");
+  YACL_ENFORCE(label_owner != nullptr, "label_owner not in ENV");
+
+  size_t word_size = ic_ctx->lctx->WorldSize();
+  for (size_t i = 0; i < word_size; ++i) {
+    if (ic_ctx->lctx->PartyIdByRank(i) == label_owner) {
+      return i;
+    }
+  }
+
+  YACL_THROW("get label_rank failed");
+}
+
+std::vector<int32_t> GetFeatureNums(const std::shared_ptr<IcContext>& ic_ctx) {
+  std::vector<int32_t> feature_nums;
+  if (!FLAGS_disable_handshake) {
+    return feature_nums;  // got through the handshake that follows
+  }
+
+  // get parameters from ENV
+  char* json_str = util::GetParamEnv("feature_nums");
+  YACL_ENFORCE(json_str != nullptr, "feature_nums not in ENV");
+
+  size_t word_size = ic_ctx->lctx->WorldSize();
+  feature_nums.resize(word_size);
+  auto json_object = nlohmann::json::parse(json_str);
+  for (size_t i = 0; i < word_size; ++i) {
+    feature_nums.at(i) = json_object.at(ic_ctx->lctx->PartyIdByRank(i));
+  }
+
+  return feature_nums;
+}
+
 }  // namespace
 
 std::shared_ptr<LrContext> CreateLrContext(std::shared_ptr<IcContext> ic_ctx) {
   auto ctx = std::make_shared<LrContext>();
   ctx->lr_param = SuggestedLrHyperParam();
 
-  ctx->io_param.label_rank = SuggestedHasLabel() ? ic_ctx->lctx->Rank() : -1;
+  ctx->io_param.label_rank = GetLabelRank(ic_ctx);
+
+  ctx->io_param.feature_nums = GetFeatureNums(ic_ctx);
 
   ctx->sigmoid_mode = op::sigmoid::SuggestedSigmoidMode();
 

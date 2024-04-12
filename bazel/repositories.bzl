@@ -17,9 +17,11 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 SECRETFLOW_GIT = "https://github.com/secretflow"
 
-SPU_COMMIT_ID  = "b28e086c6b0fc2b01e7be80ea438afd9ef54f3e2"
+SPU_COMMIT_ID  = "8bf3c97da503f1cffd1292c8e365ecbc30675400"
 
-IC_COMMIT_ID  = "a2ffff21a528456c383a113f6a57b98b3c9de6fe"
+PSI_COMMIT_ID  = "58f687b9949bfda4cf31a09bb6d4a3bc1f375757"
+
+IC_COMMIT_ID  = "30e4220b7444d0bb077a9040f1b428632124e31a"
 
 SPU_REPOSITORY = "SPU"
 
@@ -30,7 +32,14 @@ def ic_impl_deps():
         git_repository,
         name = "spulib",
         commit = SPU_COMMIT_ID,
-        remote = "{}/{}.git".format("https://github.com/shaojian-ant", SPU_REPOSITORY),
+        remote = "{}/{}.git".format(SECRETFLOW_GIT, SPU_REPOSITORY),
+    )
+
+    maybe(
+        git_repository,
+        name = "psi",
+        commit = PSI_COMMIT_ID,
+        remote = "{}/psi.git".format(SECRETFLOW_GIT),
     )
 
 def protocol_deps():

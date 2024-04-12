@@ -20,7 +20,7 @@
 #include "interconnection/handshake/algos/psi.pb.h"
 #include "interconnection/handshake/protocol_family/ecc.pb.h"
 
-namespace spu::psi {
+namespace psi::psi {
 class BucketPsi;
 }
 
@@ -70,7 +70,7 @@ class EcdhPsiV2Handler : public AlgoV2Handler {
 
   std::shared_ptr<EcdhPsiContext> ctx_;
 
-  std::unique_ptr<spu::psi::BucketPsi> bucket_psi_;
+  std::unique_ptr<::psi::BucketPsi> bucket_psi_;
 };
 
 }  // namespace ic_impl::algo::psi::v2

@@ -21,17 +21,23 @@
 #include "gflags/gflags.h"
 #include "libspu/core/config.h"
 #include "libspu/core/encoding.h"
-#include "libspu/kernel/hal/hal.h"
+#include "libspu/kernel/hal/constants.h"
+#include "libspu/kernel/hal/polymorphic.h"
+#include "libspu/kernel/hal/public_helper.h"
+#include "libspu/kernel/hal/shape_ops.h"
+#include "libspu/kernel/hal/type_cast.h"
 #include "libspu/mpc/aby3/type.h"
 #include "libspu/mpc/factory.h"
 #include "libspu/mpc/semi2k/type.h"
+#include "xtensor/xarray.hpp"
 #include "xtensor/xcsv.hpp"
-#include "xtensor/xio.hpp"
+#include "xtensor/xview.hpp"
 
 DEFINE_string(dataset, "data.csv", "dataset file, only csv is supported");
 DEFINE_int32(skip_rows, 1, "skip number of rows from dataset");
 DEFINE_string(lr_output, "/tmp/sslr_result", "full path name of output file");
 DECLARE_int32(rank);
+DECLARE_bool(disable_handshake);
 
 namespace ic_impl::algo::lr {
 
@@ -196,11 +202,17 @@ bool LrHandler::PrepareDataset() {
   int32_t feature_num =
       ctx_->HasLabel() ? dataset_->shape(1) - 1 : dataset_->shape(1);
   YACL_ENFORCE(sample_size > 0);
-  YACL_ENFORCE(feature_num > 0);
 
   ctx_->io_param.sample_size = sample_size;
-  ctx_->io_param.feature_nums.resize(ctx_->ic_ctx->lctx->WorldSize());
-  ctx_->io_param.feature_nums[ctx_->ic_ctx->lctx->Rank()] = feature_num;
+  auto self_rank = ctx_->ic_ctx->lctx->Rank();
+
+  if (FLAGS_disable_handshake) {
+    YACL_ENFORCE(ctx_->io_param.feature_nums.at(self_rank) == feature_num);
+  } else {
+    YACL_ENFORCE(feature_num > 0);
+    ctx_->io_param.feature_nums.resize(ctx_->ic_ctx->lctx->WorldSize());
+    ctx_->io_param.feature_nums.at(self_rank) = feature_num;
+  }
 
   return true;
 }
@@ -676,15 +688,17 @@ float Accuracy(const xt::xarray<float>& y_true,
 
 void ProduceOutput(spu::SPUContext* sctx, const spu::Value& w) {
   // output result shares to the file
-  spu::PtType out_pt_type;
-  auto w_output = spu::decodeFromRing(
-      w.data(), w.dtype(), sctx->config().fxp_fraction_bits(), &out_pt_type);
-  YACL_ENFORCE(out_pt_type == spu::PT_F32);
+  spu::PtType pt_type = getDecodeType(w.dtype());
+  spu::NdArrayRef dst(makePtType(pt_type), w.shape());
+  spu::PtBufferView pv(static_cast<void*>(dst.data()), pt_type, dst.shape(),
+                       dst.strides());
+  spu::decodeFromRing(w.data(), w.dtype(), sctx->config().fxp_fraction_bits(),
+                      &pv);
 
   std::string out_file_name = GetLrOutputFileName();
   std::ofstream of(out_file_name);
   YACL_ENFORCE(of, "open file={} failed", out_file_name);
-  for (auto it = w_output.begin(); it != w_output.end(); ++it) {
+  for (auto it = dst.begin(); it != dst.end(); ++it) {
     auto* item = reinterpret_cast<float*>(it.getRawPtr());
     of << *item << '\n';
   }
@@ -756,10 +770,17 @@ std::unique_ptr<spu::SPUContext> LrHandler::MakeSpuContext() {
 
 spu::Value LrHandler::EncodingDataset(spu::PtBufferView dataset) {
   // encode to ring.
+  auto array = convertToNdArray(dataset);
+  SPU_ENFORCE(array.eltype().isa<spu::PtTy>(), "expect PtType, got={}",
+              array.eltype());
+
+  const spu::PtType pt_type = array.eltype().as<spu::PtTy>()->pt_type();
+  spu::PtBufferView pv(static_cast<const void*>(array.data()), pt_type,
+                       array.shape(), array.strides());
+
   spu::DataType dtype;
   spu::NdArrayRef encoded =
-      encodeToRing(convertToNdArray(dataset),
-                   static_cast<spu::FieldType>(ctx_->ss_param.field_type),
+      encodeToRing(pv, static_cast<spu::FieldType>(ctx_->ss_param.field_type),
                    ctx_->ss_param.fxp_bits, &dtype);
 
   return spu::Value(encoded, dtype);

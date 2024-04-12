@@ -22,19 +22,10 @@
 
 namespace ic_impl {
 
-using HandshakeRequestV1 = org::interconnection::algos::psi::HandshakeRequest;
-using HandshakeResponseV1 = org::interconnection::algos::psi::HandshakeResponse;
-
 using HandshakeRequestV2 = org::interconnection::v2::HandshakeRequest;
 using HandshakeResponseV2 = org::interconnection::v2::HandshakeResponse;
 
 struct IcContext;
-
-class AlgoV1Handler {
- public:
-  AlgoV1Handler() = default;
-  ~AlgoV1Handler() = default;
-};
 
 class AlgoV2Handler {
   friend class Party;
@@ -45,7 +36,7 @@ class AlgoV2Handler {
 
   virtual ~AlgoV2Handler() = default;
 
-  void PassiveRun(const std::vector<HandshakeRequestV2> &requests);
+  void PassiveRun();
 
   void ActiveRun(int32_t recv_rank);
 
@@ -58,9 +49,11 @@ class AlgoV2Handler {
 
   void SendHandshakeResponse(const HandshakeResponseV2 &response);
 
+  std::vector<HandshakeRequestV2> RecvHandshakeRequests();
+
   HandshakeResponseV2 RecvHandshakeResponse(int32_t src_rank);
 
-  bool PassiveHandshake(const std::vector<HandshakeRequestV2> &requests);
+  bool PassiveHandshake();
 
   bool ActiveHandshake(int32_t dst_rank);
 
