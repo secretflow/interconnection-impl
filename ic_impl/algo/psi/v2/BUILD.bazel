@@ -33,6 +33,6 @@ cc_library(
     deps = [
         "//ic_impl:context",
         "//ic_impl/protocol_family/ecc",
-        "@spulib//libspu/psi:bucket_psi",
+        "@psi//psi/legacy:bucket_psi",
     ]
 )

@@ -25,6 +25,11 @@ cc_library(
         "//ic_impl:handler",
         "@spulib//libspu/mpc:factory",
         "@com_google_absl//absl/functional:bind_front",
+        "@spulib//libspu/kernel/hal:constants",
+        "@spulib//libspu/kernel/hal:polymorphic",
+        "@spulib//libspu/kernel/hal:type_cast",
+        "@spulib//libspu/kernel/hal:shape_ops",
+        "@spulib//libspu/kernel/hal:public_helper",
     ]
 )
 
@@ -37,7 +42,6 @@ cc_library(
         "//ic_impl:context",
         "//ic_impl/op/sigmoid",
         "//ic_impl/protocol_family/ss",
-        "@spulib//libspu/kernel/hal",
     ]
 )
 

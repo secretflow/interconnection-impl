@@ -20,6 +20,10 @@ protocol_deps()
 load("//bazel:repositories.bzl", "ic_impl_deps")
 ic_impl_deps()
 
+load("@psi//bazel:repositories.bzl", "psi_deps")
+
+psi_deps()
+
 # spu
 load("@spulib//bazel:repositories.bzl", "spu_deps")
 spu_deps()
@@ -27,6 +31,20 @@ spu_deps()
 # yacl
 load("@yacl//bazel:repositories.bzl", "yacl_deps")
 yacl_deps()
+
+load("@rules_python//python:repositories.bzl", "py_repositories")
+
+py_repositories()
+
+load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
+
+boost_deps()
+
+load("@rules_cuda//cuda:repositories.bzl", "register_detected_cuda_toolchains", "rules_cuda_dependencies")
+
+rules_cuda_dependencies()
+
+register_detected_cuda_toolchains()
 
 # xla
 load("@xla//:workspace4.bzl", "xla_workspace4")

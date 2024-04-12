@@ -4,7 +4,7 @@
 
 ## 构建
 
-interconnection-impl引用了spu仓库代码，需要根据[spu构建前提](https://github.com/secretflow/spu/blob/main/CONTRIBUTING.md#build)在编译环境上安装好依赖库
+interconnection-impl 引用了 spu 仓库代码，需要根据[ spu 构建前提](https://github.com/secretflow/spu/blob/main/CONTRIBUTING.md#build)在编译环境上安装好依赖库
 
 然后执行以下构建指令：
 
@@ -12,9 +12,9 @@ interconnection-impl引用了spu仓库代码，需要根据[spu构建前提](htt
 bazel build ic_impl/ic_main
 ```
 
-## 运行
+## 运行 ECDH-PSI
 
-### ECDH-PSI
+### 命令行传参
 
 本地同时执行以下两条指令：
 
@@ -30,16 +30,49 @@ bazel run ic_impl/ic_main -- -rank=1 -algo=ECDH_PSI -protocol_families=ECC \
         -parties=127.0.0.1:9530,127.0.0.1:9531
 ```
 
-### SS-LR
+### 环境变量传参
 
-运行SS-LR之前，需要先启动Beaver服务。Beaver服务的代码位于SPU仓库中，需要将SPU代码克隆到本地，然后编译并启动Beaver服务：
+为满足北京金融科技产业联盟的调度层互联互通标准对算法组件接口的要求，interconnection-impl 支持 ECDH-PSI 算法从环境变量读取配置参数
+
+当某个参数在环境变量和命令行选项都被指定时，优先选择读取环境变量参数
+
+程序运行需要关闭握手过程：
+```shell
+bazel run ic_impl/ic_main -- -disable_handshake=1
+```
+
+ECDH-PSI 算法配置的环境变量如下表所示。环境变量设置可参考 [ecdh-psi-env-alice.sh](./ic_impl/env/ecdh-psi-env-alice.sh) 和 [ecdh-psi-env-bob.sh](./ic_impl/env/ecdh-psi-env-bob.sh)
+
+| 环境变量                                                   |                   参考值                    |                          描述                          |
+|:-------------------------------------------------------|:----------------------------------------:|:----------------------------------------------------:|
+| runtime.component.parameter.algo                       |                 ecdh_psi                 |                      algorithm                       |
+| runtime.component.parameter.protocol_families          |                   ecc                    |      comma-separated list of protocol families       |
+| runtime.component.parameter.curve_type                 |                curve25519                |                 elliptic curve type                  |
+| runtime.component.parameter.hash_type                  |                 sha_256                  |                      hash type                       |
+| runtime.component.parameter.hash2curve_strategy        |          direct_hash_as_point_x          |                hash to curve strategy                |
+| runtime.component.parameter.point_octet_format         |               uncompressed               |              point Octet-String format               |
+| runtime.component.parameter.bit_length_after_truncated |                    -1                    | optimization method: secondary ciphertext truncation |
+| system.storage.host.url                                |           file://path/to/root            |            root path of input/output file            |
+| runtime.component.input.train_data                     | {"namespace":"data","name":"psi_1.csv"}  |         relative path and name of input file         |
+| runtime.component.parameter.field_names                |                    id                    |                     field names                      |
+| runtime.component.parameter.result_to_rank             |                    -1                    |              which rank gets the result              |
+| runtime.component.output.train_data                    | {"namespace":"output","name":"result_a"} |        relative path and name of output file         |
+
+## 运行 SS-LR
+
+### 启动 Beaver 服务
+
+运行 SS-LR 之前，需要先启动 Beaver 服务。Beaver 服务的代码位于 SPU 仓库中，需要将 SPU 代码克隆到本地，然后编译并启动 Beaver
+服务：
 
 ```shell
 git clone git@github.com:secretflow/spu.git
 cd spu && bazel run libspu/mpc/semi2k/beaver/ttp_server:beaver_server_main -- -port=9449
 ```
 
-启动Beaver服务后，本地同时执行以下两条指令：
+### 命令行传参
+
+启动 Beaver 服务后，本地同时执行以下两条指令：
 
 ```shell
 bazel run ic_impl/ic_main -- -rank=0 -algo=SS_LR -protocol_families=SS \
@@ -55,13 +88,18 @@ bazel run ic_impl/ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS \
         -parties=127.0.0.1:9530,127.0.0.1:9531
 ```
 
-## 环境变量传参
+### 环境变量传参
 
-为满足北京金融科技产业联盟的调度层互联互通标准对算法组件接口的要求，interconnection-impl支持SS-LR算法从环境变量读取配置参数
+为满足北京金融科技产业联盟的调度层互联互通标准对算法组件接口的要求，interconnection-impl 支持 SS-LR 算法从环境变量读取配置参数
 
 当某个参数在环境变量和命令行选项都被指定时，优先选择读取环境变量参数
 
-### 环境变量定义
+程序运行需要关闭握手过程：
+```shell
+bazel run ic_impl/ic_main -- -disable_handshake=1
+```
+
+SS-LR 算法配置的环境变量如下表所示。环境变量设置可参考 [ss-lr-env-alice.sh](./ic_impl/env/ss-lr-env-alice.sh) 和 [ss-lr-env-bob.sh](./ic_impl/env/ss-lr-env-bob.sh)
 
 | 环境变量                                               |                        参考值                        |                            描述                             |
 |:---------------------------------------------------|:-------------------------------------------------:|:---------------------------------------------------------:|
@@ -85,10 +123,11 @@ bazel run ic_impl/ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS \
 | runtime.component.parameter.ttp_server_host        |                      ip:port                      |   remote ip:port or load-balance uri of beaver service    |
 | runtime.component.parameter.ttp_session_id         |               interconnection-root                |               session id of beaver service                |
 | runtime.component.parameter.ttp_adjust_rank        |                         0                         |      which rank do adjust rpc call to beaver service      |
-| system.storage                                     |                file://path/to/root                |             root path of input / output file              |
+| system.storage.host.url                            |                file://path/to/root                |              root path of input/output file               |
 | runtime.component.input.train_data                 | {"namespace":"data","name":"perfect_logit_a.csv"} |           relative path and name of input file            |
 | runtime.component.parameter.skip_rows=1            |                         1                         |            number of skipped rows from dataset            |
-| runtime.component.parameter.has_label              |                       true                        |       if true, label is the last column of dataset        |
+| runtime.component.parameter.label_owner            |                      host.0                       |             which party owns the label column             |
+| runtime.component.parameter.feature_nums           |            {"host.0":10, "guest.0":10}            |             feature column nums of each party             |
 | runtime.component.output.train_data                |     {"namespace":"output","name":"result_a"}      |           relative path and name of output file           |
 
 ## FAQ

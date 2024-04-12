@@ -33,12 +33,7 @@ class Party {
   void Run();
 
  private:
-  using HandshakeRequestVariant =
-      std::variant<std::monostate, HandshakeRequestV1, HandshakeRequestV2>;
-
   std::unique_ptr<AlgoHandlerFactory> CreateHandlerFactory();
-
-  std::vector<HandshakeRequestVariant> RecvHandshakeRequests();
 
   std::shared_ptr<IcContext> ctx_;
 };

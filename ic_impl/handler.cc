@@ -18,15 +18,49 @@
 
 #include "ic_impl/context.h"
 
+DEFINE_bool(disable_handshake, false, "whether to disable handshake");
+
 namespace ic_impl {
 
-void AlgoV2Handler::PassiveRun(
-    const std::vector<HandshakeRequestV2> &requests) {
+namespace {
+
+HandshakeRequestV2 ParseHandshakeReqeust(const yacl::Buffer &buf) {
+  org::interconnection::v2::HandshakeVersionCheckHelper helper;
+  YACL_ENFORCE(helper.ParseFromArray(buf.data(), buf.size()),
+               "handshake: parse from array failed");
+
+  YACL_ENFORCE(helper.version() >= 2,
+               "recv invalid HandshakeRequest version {}", helper.version());
+
+  HandshakeRequestV2 request;
+  YACL_ENFORCE(request.ParseFromArray(buf.data(), buf.size()),
+               "handshake: parse from array failed");
+  SPDLOG_INFO("recv HandshakeRequest:\n{}", request.DebugString());
+
+  return request;
+}
+
+int32_t AlignHandshakeVersion(const std::vector<HandshakeRequestV2> &requests) {
+  int32_t version = 0;
+  for (const auto &request : requests) {
+    if (version != 0 && version != request.version()) {
+      return 0;
+    } else {
+      version = request.version();
+    }
+  }
+
+  return version;
+}
+
+}  // namespace
+
+void AlgoV2Handler::PassiveRun() {
   if (!PrepareDataset()) {
     return;
   }
 
-  if (!PassiveHandshake(requests)) {
+  if (!FLAGS_disable_handshake && !PassiveHandshake()) {
     return;
   }
 
@@ -38,15 +72,28 @@ void AlgoV2Handler::ActiveRun(int32_t recv_rank) {
     return;
   }
 
-  if (!ActiveHandshake(recv_rank)) {
+  if (!FLAGS_disable_handshake && !ActiveHandshake(recv_rank)) {
     return;
   }
 
   RunAlgo();
 }
 
-bool AlgoV2Handler::PassiveHandshake(
-    const std::vector<HandshakeRequestV2> &requests) {
+bool AlgoV2Handler::PassiveHandshake() {
+  auto requests = RecvHandshakeRequests();
+
+  // Check HandshakeRequest versions
+  int32_t version = AlignHandshakeVersion(requests);
+  if (version != ctx_->version) {
+    SPDLOG_WARN("Handshake versions are inconsistent");
+    HandshakeResponseV2 response;
+    response.mutable_header()->set_error_code(
+        org::interconnection::HANDSHAKE_REFUSED);
+    response.mutable_header()->set_error_msg("handshake versions inconsistent");
+    SendHandshakeResponse(response);
+    return false;
+  }
+
   auto response = ProcessHandshakeRequests(requests);
 
   SendHandshakeResponse(response);
@@ -106,6 +153,24 @@ void AlgoV2Handler::SendHandshakeResponse(const HandshakeResponseV2 &response) {
                           "Handshake_response");
     SPDLOG_INFO("send HandshakeResponse:\n{}", response.DebugString());
   }
+}
+
+std::vector<HandshakeRequestV2> AlgoV2Handler::RecvHandshakeRequests() {
+  std::vector<HandshakeRequestV2> requests;
+  auto lctx = ctx_->lctx;
+  size_t self_rank = lctx->Rank();
+  size_t word_size = lctx->WorldSize();
+
+  // Recv HandshakeRequest from rank 1 ~ n-1
+  for (size_t i = 0; i < word_size; ++i) {
+    if (i == self_rank) {
+      continue;
+    }
+    auto buf = lctx->Recv(i, "Handshake");
+    requests.push_back(ParseHandshakeReqeust(buf));
+  }
+
+  return requests;
 }
 
 HandshakeResponseV2 AlgoV2Handler::RecvHandshakeResponse(int32_t src_rank) {

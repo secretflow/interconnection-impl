@@ -7,3 +7,5 @@ bazel-*
 
 build
 .DS_Store
+
+.idea

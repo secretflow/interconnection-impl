@@ -14,7 +14,7 @@
 
 #include "ic_impl/algo/psi/v2/psi_handler_v2.h"
 
-#include "libspu/psi/bucket_psi.h"
+#include "psi/legacy/bucket_psi.h"
 
 namespace org::interconnection::v2::protocol {
 
@@ -88,8 +88,8 @@ EcdhPsiV2Handler::~EcdhPsiV2Handler() = default;
 
 bool EcdhPsiV2Handler::PrepareDataset() {
   bucket_psi_ = CreateBucketPsi(*ctx_);
-  auto checker = bucket_psi_->CheckInput();
 
+  auto checker = CheckInput(*ctx_);
   ctx_->item_num = checker->data_count();
 
   return true;
@@ -265,10 +265,10 @@ void EcdhPsiV2Handler::RunAlgo() {
   YACL_ENFORCE(bucket_psi_);
 
   try {
-    spu::psi::PsiResultReport report;
+    ::psi::PsiResultReport report;
     report.set_original_count(ctx_->item_num);
     uint64_t self_items_count = ctx_->item_num;
-    auto progress = std::make_shared<spu::psi::Progress>();
+    auto progress = std::make_shared<::psi::Progress>();
     auto indices = bucket_psi_->RunPsi(progress, self_items_count);
     bucket_psi_->ProduceOutput(false, indices, report);
 

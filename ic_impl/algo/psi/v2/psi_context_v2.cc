@@ -14,8 +14,10 @@
 
 #include "ic_impl/algo/psi/v2/psi_context_v2.h"
 
+#include "absl/strings/str_split.h"
 #include "gflags/gflags.h"
-#include "libspu/psi/bucket_psi.h"
+#include "psi/legacy/bucket_psi.h"
+#include "psi/utils/csv_checker.h"
 
 #include "ic_impl/protocol_family/ecc/ecc.h"
 #include "ic_impl/util.h"
@@ -76,9 +78,8 @@ std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
   return ctx;
 }
 
-std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
-    const EcdhPsiContext &ctx) {
-  spu::psi::BucketPsiConfig config;
+std::unique_ptr<::psi::BucketPsi> CreateBucketPsi(const EcdhPsiContext &ctx) {
+  ::psi::BucketPsiConfig config;
   config.mutable_input_params()->set_path(GetPsiInputFileName());
   auto field_list = absl::StrSplit(GetPsiInputFileFieldNames(), ',');
   config.mutable_input_params()->mutable_select_fields()->Add(
@@ -87,7 +88,7 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
   config.mutable_output_params()->set_path(GetPsiOutputFileName());
   config.mutable_output_params()->set_need_sort(false);
 
-  config.set_psi_type(spu::psi::PsiType::ECDH_PSI_2PC);
+  config.set_psi_type(::psi::PsiType::ECDH_PSI_2PC);
 
   if (ctx.result_to_rank == -1) {
     config.set_broadcast_result(true);
@@ -98,7 +99,7 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
 
   switch (ctx.curve_type) {
     case CURVE_TYPE_CURVE25519: {
-      config.set_curve_type(spu::psi::CurveType::CURVE_25519);
+      config.set_curve_type(::psi::CurveType::CURVE_25519);
       YACL_ENFORCE(ctx.hash_type == HASH_TYPE_SHA_256,
                    "Currently only support sha256 hash for curve25519");
       YACL_ENFORCE(
@@ -110,7 +111,7 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
       break;
     }
     case CURVE_TYPE_SM2: {
-      config.set_curve_type(spu::psi::CurveType::CURVE_SM2);
+      config.set_curve_type(::psi::CurveType::CURVE_SM2);
       YACL_ENFORCE(ctx.hash_type == HASH_TYPE_SHA_256,
                    "Currently only support sha256 hash for sm2");
       YACL_ENFORCE(
@@ -125,7 +126,15 @@ std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(
       YACL_THROW("Unspecified curve type: {}", ctx.curve_type);
   }
 
-  return std::make_unique<spu::psi::BucketPsi>(config, ctx.ic_ctx->lctx, true);
+  return std::make_unique<::psi::BucketPsi>(config, ctx.ic_ctx->lctx, true);
+}
+
+std::unique_ptr<::psi::CsvChecker> CheckInput(const EcdhPsiContext &ctx) {
+  auto field_list = absl::StrSplit(GetPsiInputFileFieldNames(), ',');
+  std::vector<std::string> selected_fields(field_list.begin(),
+                                           field_list.end());
+  return ::psi::CheckInput(ctx.ic_ctx->lctx, GetPsiInputFileName(),
+                           selected_fields, false, true);
 }
 
 }  // namespace ic_impl::algo::psi::v2

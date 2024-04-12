@@ -16,9 +16,10 @@
 
 #include "ic_impl/context.h"
 
-namespace spu::psi {
+namespace psi {
 class BucketPsi;
-}
+class CsvChecker;
+}  // namespace psi
 
 namespace ic_impl::algo::psi::v2 {
 
@@ -36,6 +37,8 @@ struct EcdhPsiContext {
 std::shared_ptr<EcdhPsiContext> CreateEcdhPsiContext(
     std::shared_ptr<IcContext>);
 
-std::unique_ptr<spu::psi::BucketPsi> CreateBucketPsi(const EcdhPsiContext &);
+std::unique_ptr<::psi::BucketPsi> CreateBucketPsi(const EcdhPsiContext &);
+
+std::unique_ptr<::psi::CsvChecker> CheckInput(const EcdhPsiContext &);
 
 }  // namespace ic_impl::algo::psi::v2
