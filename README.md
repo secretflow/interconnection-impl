@@ -9,7 +9,7 @@ interconnection-impl 引用了 spu 仓库代码，需要根据[ spu 构建前提
 然后执行以下构建指令：
 
 ```shell
-bazel build ic_impl/ic_main
+bazel build -c opt ic_impl/ic_main
 ```
 
 ## 运行 ECDH-PSI
@@ -19,13 +19,13 @@ bazel build ic_impl/ic_main
 本地同时执行以下两条指令：
 
 ```shell
-bazel run ic_impl/ic_main -- -rank=0 -algo=ECDH_PSI -protocol_families=ECC \
+bazel run -c opt ic_impl/ic_main -- -rank=0 -algo=ECDH_PSI -protocol_families=ECC \
         -in_path ic_impl/data/psi_1.csv -field_names id -out_path /tmp/p1.out \
         -parties=127.0.0.1:9530,127.0.0.1:9531
 ```
 
 ```shell
-bazel run ic_impl/ic_main -- -rank=1 -algo=ECDH_PSI -protocol_families=ECC \
+bazel run -c opt ic_impl/ic_main -- -rank=1 -algo=ECDH_PSI -protocol_families=ECC \
         -in_path ic_impl/data/psi_2.csv -field_names id -out_path /tmp/p2.out \
         -parties=127.0.0.1:9530,127.0.0.1:9531
 ```
@@ -38,7 +38,7 @@ bazel run ic_impl/ic_main -- -rank=1 -algo=ECDH_PSI -protocol_families=ECC \
 
 程序运行需要关闭握手过程：
 ```shell
-bazel run ic_impl/ic_main -- -disable_handshake=1
+bazel run -c opt ic_impl/ic_main -- -disable_handshake=1
 ```
 
 ECDH-PSI 算法配置的环境变量如下表所示。环境变量设置可参考 [ecdh-psi-env-alice.sh](./ic_impl/env/ecdh-psi-env-alice.sh) 和 [ecdh-psi-env-bob.sh](./ic_impl/env/ecdh-psi-env-bob.sh)
@@ -62,30 +62,43 @@ ECDH-PSI 算法配置的环境变量如下表所示。环境变量设置可参�
 
 ### 启动 Beaver 服务
 
-运行 SS-LR 之前，需要先启动 Beaver 服务。Beaver 服务的代码位于 SPU 仓库中，需要将 SPU 代码克隆到本地，然后编译并启动 Beaver
-服务：
+运行 SS-LR 之前，需要先启动 Beaver 服务。Beaver 服务的代码位于 SPU 仓库中，需要将 SPU 代码克隆到本地并编译：
 
 ```shell
 git clone git@github.com:secretflow/spu.git
-cd spu && bazel run libspu/mpc/semi2k/beaver/ttp_server:beaver_server_main -- -port=9449
+cd spu && bazel build -c opt libspu/mpc/semi2k/beaver/beaver_impl/ttp_server:beaver_server_main
+```
+
+然后生成 Beaver 服务的公钥和私钥：
+
+```
+bazel-bin/libspu/mpc/semi2k/beaver/beaver_impl/ttp_server/beaver_server_main -gen_key=true
+```
+
+最后启动 Beaver 服务，将上一步生成的私钥通过命令行参数传递给 Beaver 服务：
+
+```
+bazel-bin/libspu/mpc/semi2k/beaver/beaver_impl/ttp_server/beaver_server_main -port=9449 -server_private_key=LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JR0lBZ0VBTUJRR0NDcUJITTlWQVlJdEJnZ3FnUnpQVlFHQ0xRUnRNR3NDQVFFRUlJVnRVS1JEalVERFptZ3cKL0xUd0dYUmZXVFM5MStTSEhqODAwNnc2SUUxNW9VUURRZ0FFdER5RHNLM0RQN3YyWmdEdjZYNVQySnMzdGtmNQpPYXVBUEdXTHErTlhuMW1HYkd5N3pIZEVaa0FvNERDSGZyRmVuRWFCckxXMFZxUUtUY3QxUzJUYXpnPT0KLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=
 ```
 
 ### 命令行传参
 
-启动 Beaver 服务后，本地同时执行以下两条指令：
+启动 Beaver 服务后，本地同时执行以下两条指令，命令行参数包括上述 Beaver 服务生成的公钥：
 
 ```shell
-bazel run ic_impl/ic_main -- -rank=0 -algo=SS_LR -protocol_families=SS \
+bazel run -c opt ic_impl/ic_main -- -rank=0 -algo=SS_LR -protocol_families=SS \
         -dataset=ic_impl/data/perfect_logit_a.csv -has_label=true \
         -use_ttp=true -ttp_server_host=127.0.0.1:9449 \
-        -parties=127.0.0.1:9530,127.0.0.1:9531
+        -parties=127.0.0.1:9530,127.0.0.1:9531 -ttp_asym_crypto_schema=sm2 \
+        -ttp_public_key=LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZvd0ZBWUlLb0VjejFVQmdpMEdDQ3FCSE05VkFZSXRBMElBQkxROGc3Q3R3eis3OW1ZQTcrbCtVOWliTjdaSAorVG1yZ0R4bGk2dmpWNTlaaG14c3U4eDNSR1pBS09Bd2gzNnhYcHhHZ2F5MXRGYWtDazNMZFV0azJzND0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
 ```
 
 ```shell
-bazel run ic_impl/ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS \
+bazel run -c opt ic_impl/ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS \
         -dataset=ic_impl/data/perfect_logit_b.csv -has_label=false \
         -use_ttp=true -ttp_server_host=127.0.0.1:9449 \
-        -parties=127.0.0.1:9530,127.0.0.1:9531
+        -parties=127.0.0.1:9530,127.0.0.1:9531 -ttp_asym_crypto_schema=sm2 \
+        -ttp_public_key=LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZvd0ZBWUlLb0VjejFVQmdpMEdDQ3FCSE05VkFZSXRBMElBQkxROGc3Q3R3eis3OW1ZQTcrbCtVOWliTjdaSAorVG1yZ0R4bGk2dmpWNTlaaG14c3U4eDNSR1pBS09Bd2gzNnhYcHhHZ2F5MXRGYWtDazNMZFV0azJzND0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
 ```
 
 ### 环境变量传参
@@ -96,7 +109,7 @@ bazel run ic_impl/ic_main -- -rank=1 -algo=SS_LR -protocol_families=SS \
 
 程序运行需要关闭握手过程：
 ```shell
-bazel run ic_impl/ic_main -- -disable_handshake=1
+bazel run -c opt ic_impl/ic_main -- -disable_handshake=1
 ```
 
 SS-LR 算法配置的环境变量如下表所示。环境变量设置可参考 [ss-lr-env-alice.sh](./ic_impl/env/ss-lr-env-alice.sh) 和 [ss-lr-env-bob.sh](./ic_impl/env/ss-lr-env-bob.sh)
@@ -121,7 +134,8 @@ SS-LR 算法配置的环境变量如下表所示。环境变量设置可参考 [
 | runtime.component.parameter.shard_serialize_format |                        raw                        | serialization format used for communicating secret shares |
 | runtime.component.parameter.use_ttp                |                       true                        |               whether to use beaver service               |
 | runtime.component.parameter.ttp_server_host        |                      ip:port                      |   remote ip:port or load-balance uri of beaver service    |
-| runtime.component.parameter.ttp_session_id         |               interconnection-root                |               session id of beaver service                |
+| runtime.component.parameter.ttp_asym_crypto_schema |                        sm2                        |           asym_crypto_schema of beaver service            |
+| runtime.component.parameter.ttp_public_key         |                                                   |               public key of beaver service                |
 | runtime.component.parameter.ttp_adjust_rank        |                         0                         |      which rank do adjust rpc call to beaver service      |
 | system.storage.host.url                            |                file://path/to/root                |              root path of input/output file               |
 | runtime.component.input.train_data                 | {"namespace":"data","name":"perfect_logit_a.csv"} |           relative path and name of input file            |
