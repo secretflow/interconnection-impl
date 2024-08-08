@@ -20,13 +20,12 @@ protocol_deps()
 load("//bazel:repositories.bzl", "ic_impl_deps")
 ic_impl_deps()
 
-load("@psi//bazel:repositories.bzl", "psi_deps")
-
-psi_deps()
-
 # spu
 load("@spulib//bazel:repositories.bzl", "spu_deps")
 spu_deps()
+
+load("@psi//bazel:repositories.bzl", "psi_deps")
+psi_deps()
 
 # yacl
 load("@yacl//bazel:repositories.bzl", "yacl_deps")

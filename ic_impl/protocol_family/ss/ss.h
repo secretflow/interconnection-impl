@@ -29,8 +29,9 @@ struct SsProtocolParam {
 struct TrustedThirdPartyConfig {
   bool use_ttp;
   std::string ttp_server_host;
-  int32_t ttp_server_version = 1;
-  std::string ttp_session_id;
+  int32_t ttp_server_version = 2;
+  std::string ttp_asym_crypto_schema;
+  std::string ttp_public_key;
   int32_t ttp_adjust_rank;
 };
 

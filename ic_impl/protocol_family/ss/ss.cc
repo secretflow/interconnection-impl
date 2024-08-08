@@ -14,6 +14,7 @@
 
 #include "ic_impl/protocol_family/ss/ss.h"
 
+#include "butil/base64.h"
 #include "gflags/gflags.h"
 
 #include "ic_impl/util.h"
@@ -33,8 +34,9 @@ DEFINE_bool(use_ttp, false, "whether use trusted third party's beaver service");
 DEFINE_string(
     ttp_server_host, "127.0.0.1:9449",
     "trustedThirdParty beaver server's remote ip:port or load-balance uri");
-DEFINE_string(ttp_session_id, "interconnection-root",
-              "trustedThirdParty beaver server's session id");
+DEFINE_string(ttp_asym_crypto_schema, "sm2",
+              "asym_crypto_schema: support [\"SM2\"]");
+DEFINE_string(ttp_public_key, "", "TTP public key");
 DEFINE_int32(ttp_adjust_rank, 0, "which rank do adjust rpc call");
 
 namespace ic_impl::protocol_family::ss {
@@ -77,8 +79,16 @@ std::string SuggestedTtpServerHost() {
   return util::GetParamEnv("ttp_server_host", FLAGS_ttp_server_host);
 }
 
-std::string SuggestedTtpSessionId() {
-  return util::GetParamEnv("ttp_session_id", FLAGS_ttp_session_id);
+std::string SuggestedTtpAsymCryptoSchema() {
+  return util::GetParamEnv("ttp_asym_crypto_schema",
+                           FLAGS_ttp_asym_crypto_schema);
+}
+
+std::string SuggestedTtpPublicKey() {
+  std::string ret;
+  auto pk = util::GetParamEnv("ttp_public_key", FLAGS_ttp_public_key);
+  YACL_ENFORCE(butil::Base64Decode(pk, &ret));
+  return ret;
 }
 
 int32_t SuggestedTtpAdjustRank() {
@@ -102,7 +112,8 @@ TrustedThirdPartyConfig SuggestedTtpConfig() {
   TrustedThirdPartyConfig ttp_config;
   ttp_config.use_ttp = SuggestedUseTtp();
   ttp_config.ttp_server_host = SuggestedTtpServerHost();
-  ttp_config.ttp_session_id = SuggestedTtpSessionId();
+  ttp_config.ttp_asym_crypto_schema = SuggestedTtpAsymCryptoSchema();
+  ttp_config.ttp_public_key = SuggestedTtpPublicKey();
   ttp_config.ttp_adjust_rank = SuggestedTtpAdjustRank();
 
   return ttp_config;

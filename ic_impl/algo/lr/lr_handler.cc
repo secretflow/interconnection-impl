@@ -286,7 +286,6 @@ bool LrHandler::ProcessHandshakeResponse(const HandshakeResponseV2& response) {
   YACL_ENFORCE(ss_param.triple_config().version() ==
                ctx_->ttp_config.ttp_server_version);
   ctx_->ttp_config.ttp_server_host = ss_param.triple_config().server_host();
-  ctx_->ttp_config.ttp_session_id = ss_param.triple_config().session_id();
   ctx_->ttp_config.ttp_adjust_rank = ss_param.triple_config().adjust_rank();
 
   return true;
@@ -642,8 +641,6 @@ HandshakeResponseV2 LrHandler::BuildHandshakeResponse() {
       ctx_->ttp_config.ttp_server_host);
   ss_param.mutable_triple_config()->set_version(
       ctx_->ttp_config.ttp_server_version);
-  ss_param.mutable_triple_config()->set_session_id(
-      ctx_->ttp_config.ttp_session_id);
   ss_param.mutable_triple_config()->set_adjust_rank(
       ctx_->ttp_config.ttp_adjust_rank);
   response.add_protocol_family_params()->PackFrom(ss_param);
@@ -755,10 +752,12 @@ std::unique_ptr<spu::SPUContext> LrHandler::MakeSpuContext() {
     config.set_beaver_type(spu::RuntimeConfig_BeaverType_TrustedThirdParty);
     config.mutable_ttp_beaver_config()->set_server_host(
         ctx_->ttp_config.ttp_server_host);
+    config.mutable_ttp_beaver_config()->set_asym_crypto_schema(
+        ctx_->ttp_config.ttp_asym_crypto_schema);
+    config.mutable_ttp_beaver_config()->set_server_public_key(
+        ctx_->ttp_config.ttp_public_key);
     config.mutable_ttp_beaver_config()->set_adjust_rank(
         ctx_->ttp_config.ttp_adjust_rank);
-    config.mutable_ttp_beaver_config()->set_session_id(
-        ctx_->ttp_config.ttp_session_id);
   } else {
     config.set_beaver_type(spu::RuntimeConfig_BeaverType_TrustedFirstParty);
   }

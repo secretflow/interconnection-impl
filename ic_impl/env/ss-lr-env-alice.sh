@@ -22,7 +22,8 @@ exec env \
 "runtime.component.parameter.shard_serialize_format=raw" \
 "runtime.component.parameter.use_ttp=true" \
 "runtime.component.parameter.ttp_server_host=127.0.0.1:9449" \
-"runtime.component.parameter.ttp_session_id=interconnection-root-1" \
+"runtime.component.parameter.ttp_asym_crypto_schema=sm2" \
+"runtime.component.parameter.ttp_public_key=LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZvd0ZBWUlLb0VjejFVQmdpMEdDQ3FCSE05VkFZSXRBMElBQkxROGc3Q3R3eis3OW1ZQTcrbCtVOWliTjdaSAorVG1yZ0R4bGk2dmpWNTlaaG14c3U4eDNSR1pBS09Bd2gzNnhYcHhHZ2F5MXRGYWtDazNMZFV0azJzND0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==" \
 "runtime.component.parameter.ttp_adjust_rank=0" \
 "runtime.component.parameter.label_owner=host.0" \
 'runtime.component.parameter.feature_nums={"host.0":10, "guest.0":10}' \
