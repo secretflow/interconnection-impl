@@ -45,17 +45,19 @@ void StartTransport() {
 }  // namespace
 
 std::shared_ptr<yacl::link::Context> CreateLinkContextForBlackBox() {
-  yacl::link::ContextDesc desc;
-  desc.brpc_channel_protocol = "http";
-  size_t self_rank;
-  yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties,
-                                                           self_rank);
+    yacl::link::ContextDesc desc;
+    desc.brpc_channel_protocol = "http";
+    size_t self_rank;
+    yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties, self_rank);
+    desc.connect_retry_times = util::GetParamEnv("connect_retry_times", 3600);
+    desc.connect_retry_interval_ms = util::GetParamEnv("connect_retry_interval_ms", 5000);
+    desc.recv_timeout_ms = util::GetParamEnv("recv_timeout_ms", 3600000);
 
-  if (util::GetParamEnv("start_transport", false)) {
-    StartTransport();
-  }
+    if (util::GetParamEnv("start_transport", false)) {
+        StartTransport();
+    }
 
-  return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
+    return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
 }
 
 std::shared_ptr<yacl::link::Context> CreateLinkContextForWhiteBox(
