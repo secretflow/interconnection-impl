@@ -45,17 +45,19 @@ void StartTransport() {
 }  // namespace
 
 std::shared_ptr<yacl::link::Context> CreateLinkContextForBlackBox() {
-  yacl::link::ContextDesc desc;
-  desc.brpc_channel_protocol = "http";
-  size_t self_rank;
-  yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties,
-                                                           self_rank);
+    yacl::link::ContextDesc desc;
+    desc.brpc_channel_protocol = "http";
+    size_t self_rank;
+    yacl::link::FactoryBrpcBlackBox::GetPartyNodeInfoFromEnv(desc.parties, self_rank);
+    desc.connect_retry_times = util::GetParamEnv("connect_retry_times", 3600);
+    desc.connect_retry_interval_ms = util::GetParamEnv("connect_retry_interval_ms", 5000);
+    desc.recv_timeout_ms = util::GetParamEnv("recv_timeout_ms", 3600000);
 
-  if (util::GetParamEnv("start_transport", false)) {
-    StartTransport();
-  }
+    if (util::GetParamEnv("start_transport", false)) {
+        StartTransport();
+    }
 
-  return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
+    return yacl::link::FactoryBrpcBlackBox().CreateContext(desc, self_rank);
 }
 
 std::shared_ptr<yacl::link::Context> CreateLinkContextForWhiteBox(
@@ -142,14 +144,17 @@ char* GetParamEnv(std::string_view env_name) {
 namespace {
 
 std::optional<std::string> GetIoFileNameFromEnv(bool input) {
-  char* host_url = std::getenv("system.storage");
-  if (!host_url || !absl::StartsWith(host_url, "file://")) {
-    host_url = std::getenv("system.storage.host.url");
+    char* host_url = std::getenv("system.storage");
     if (!host_url || !absl::StartsWith(host_url, "file://")) {
-      return std::nullopt;
+        host_url = std::getenv("system.storage.host.url");
+        if (!host_url) {
+            host_url = std::getenv("system.storage.localfile");
+        }
+        if (!host_url || !absl::StartsWith(host_url, "file://")) {
+            return std::nullopt;
+        }
     }
-  }
-  std::string_view root_path = host_url + 6;
+    std::string_view root_path = host_url + 6;
 
   char* json_str = nullptr;
   if (input) {
