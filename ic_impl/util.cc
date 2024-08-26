@@ -142,14 +142,17 @@ char* GetParamEnv(std::string_view env_name) {
 namespace {
 
 std::optional<std::string> GetIoFileNameFromEnv(bool input) {
-  char* host_url = std::getenv("system.storage");
-  if (!host_url || !absl::StartsWith(host_url, "file://")) {
-    host_url = std::getenv("system.storage.host.url");
+    char* host_url = std::getenv("system.storage");
     if (!host_url || !absl::StartsWith(host_url, "file://")) {
-      return std::nullopt;
+        host_url = std::getenv("system.storage.host.url");
+        if (!host_url) {
+            host_url = std::getenv("system.storage.localfile");
+        }
+        if (!host_url || !absl::StartsWith(host_url, "file://")) {
+            return std::nullopt;
+        }
     }
-  }
-  std::string_view root_path = host_url + 6;
+    std::string_view root_path = host_url + 6;
 
   char* json_str = nullptr;
   if (input) {
